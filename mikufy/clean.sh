@@ -47,7 +47,7 @@ RELEASE_DIR="$SCRIPT_DIR/mikufy-release"
 echo ""
 echo "========================================"
 echo "  Mikufy Code Editor v1.23 清理脚本"
-echo "  发布日期: 2026/1/2"
+echo "  发布日期: 2026/1/23"
 echo "========================================"
 echo ""
 
