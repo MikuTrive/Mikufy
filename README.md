@@ -4,7 +4,7 @@ Mikufy 是一款类似 VSCode 的代码编辑器，专为 Linux 平台设计，�
 
 ## 版本信息
 
-- **版本**: v1.0
+- **版本**: v1.23
 - **发布日期**: 2026/1/23
 - **目标平台**: Linux (支持 X11 和 Wayland)
 - **开发语言**: C++, HTML, CSS, JavaScript, TypeScript
