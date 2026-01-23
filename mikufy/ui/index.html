@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mikufy Code Editor v1.23</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 主容器 -->
+    <div id="app">
+        <!-- 顶部标题栏 -->
+        <div id="title-bar">
+            <div class="title-bar-left">
+                <img src="Mikufy.png" alt="Mikufy Logo" class="logo">
+                <span class="app-name">Mikufy v1.23</span>
+            </div>
+            <div class="title-bar-center">
+                <span id="current-file">未打开文件</span>
+            </div>
+        </div>
+
+        <!-- 主内容区域 -->
+        <div id="main-content">
+            <!-- 左侧文件浏览器 -->
+            <div id="sidebar">
+                <div class="sidebar-header">
+                    <h3>文件资源管理器</h3>
+                    <div class="sidebar-actions">
+                        <button id="btn-open-folder" title="打开文件夹">
+                            <img src="Icons/Folder-Open.png" alt="打开文件夹">
+                        </button>
+                        <button id="btn-new-folder" title="新建文件夹">
+                            <img src="Icons/Folder-New.png" alt="新建文件夹">
+                        </button>
+                        <button id="btn-new-file" title="新建文件">
+                            <img src="Icons/File-New.png" alt="新建文件">
+                        </button>
+                        <button id="btn-save" title="保存所有">
+                            <img src="Icons/save.png" alt="保存所有">
+                        </button>
+                    </div>
+                </div>
+                <div id="file-tree"></div>
+            </div>
+
+            <!-- 右侧编辑器区域 -->
+            <div id="editor-area">
+                <div id="tabs-container"></div>
+                <div id="editor-container">
+                    <div id="line-numbers"></div>
+                    <textarea id="code-editor" placeholder="打开或创建一个文件开始编辑..." spellcheck="false"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右键菜单 -->
+        <div id="context-menu" class="context-menu hidden">
+            <div id="ctx-rename" class="context-menu-item">
+                <img src="Icons/File-Rename.png" alt="重命名">
+                <span>重命名</span>
+            </div>
+            <div id="ctx-delete" class="context-menu-item">
+                <img src="Icons/Trash.png" alt="删除">
+                <span>删除</span>
+            </div>
+        </div>
+
+        <!-- 模态对话框 -->
+        <div id="modal-overlay" class="modal-overlay hidden">
+            <div id="modal-dialog" class="modal-dialog">
+                <div class="modal-header">
+                    <h3 id="modal-title">标题</h3>
+                    <button id="modal-close">✕</button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="modal-input" placeholder="输入内容">
+                    <p id="modal-message"></p>
+                </div>
+                <div class="modal-footer">
+                    <button id="modal-cancel">取消</button>
+                    <button id="modal-confirm">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
