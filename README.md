@@ -367,19 +367,19 @@ sudo zypper install gcc-c++ pkgconfig webkit2gtk-4.1-devel gtk3-devel glib2-deve
 
 ## 常见问题
 
-### Q: 编译时提示找不到头文件
+### Quest: 编译时提示找不到头文件
 A: 确保已安装所有依赖，特别是 `libwebkit2gtk-4.1-dev` 和 `nlohmann-json3-dev`
 
-### Q: 运行时提示找不到 libwebkit2gtk-4.1.so
+### Quest: 运行时提示找不到 libwebkit2gtk-4.1.so
 A: 安装 WebKitGTK 运行时库：`sudo apt install libwebkit2gtk-4.1-43`
 
-### Q: 语法高亮不生效
+### Quest: 语法高亮不生效
 A: 确保文件扩展名正确，程序通过扩展名判断文件类型
 
-### Q: 无法打开某些文件
+### Quest: 无法打开某些文件
 A: 检查文件权限，确保程序有读取权限
 
-### Q: 媒体文件无法播放
+### Quest: 媒体文件无法播放
 A: 确保系统已安装对应的编解码器
 
 ## 许可证
