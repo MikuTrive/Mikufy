@@ -1,4 +1,4 @@
-# Mikufy-v2.1
+# Mikufy v2.1
 
 ## 项目简介
 

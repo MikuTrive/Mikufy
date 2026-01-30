@@ -620,13 +620,12 @@ function showCodeContent(content) {
     // 设置代码内容为可编辑
     DOM.codeEditor.contentEditable = 'true';
     
-    // 应用语法高亮并转换换行符
+    // 直接使用纯文本，不添加HTML标签
+    // 这样可以避免HTML标签污染文件内容
     if (content) {
-        const highlighted = syntaxHighlight(content);
-        const html = highlighted.replace(/\n/g, '<br>');
-        DOM.codeEditor.innerHTML = html;
+        DOM.codeEditor.textContent = content;
     } else {
-        DOM.codeEditor.innerHTML = '';
+        DOM.codeEditor.textContent = '';
     }
     
     // 更新行号
@@ -718,9 +717,46 @@ window.playAudio = function(path) {
  * @param {string} content 代码内容
  */
 function updateLineNumbers(content) {
-    const lines = content.split('\n').length;
-    let lineNumbersHtml = '';
+    // 方法1：基于文本内容计算行数（适用于使用 textContent 的情况）
+    let lines = 1;
+    if (content) {
+        // 统计换行符的数量
+        const newLines = (content.match(/\n/g) || []).length;
+        lines = newLines + 1;
+    }
     
+    // 方法2：基于实际DOM元素计算行数（更准确，适用于 contentEditable）
+    // 获取编辑器中所有的文本节点和换行元素
+    const childNodes = DOM.codeEditor.childNodes;
+    let domLines = 0;
+    
+    for (let i = 0; i < childNodes.length; i++) {
+        const node = childNodes[i];
+        
+        if (node.nodeType === Node.TEXT_NODE) {
+            // 文本节点，计算其中的换行符数量
+            const textContent = node.textContent || '';
+            const newLines = (textContent.match(/\n/g) || []).length;
+            domLines += newLines + 1;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const tagName = node.tagName?.toLowerCase();
+            // <br> 标签表示换行
+            if (tagName === 'br') {
+                domLines++;
+            }
+            // <div> 等块级元素也表示新的一行
+            else if (tagName === 'div' || tagName === 'p') {
+                domLines++;
+            }
+        }
+    }
+    
+    // 如果 DOM 元素的行数更多，使用 DOM 元素的行数
+    if (domLines > lines) {
+        lines = domLines;
+    }
+    
+    let lineNumbersHtml = '';
     for (let i = 1; i <= lines; i++) {
         lineNumbersHtml += `<div class="line-number">${i}</div>`;
     }
@@ -1266,28 +1302,39 @@ function initEventListeners() {
 }
 
 /**
- * 获取编辑器内容（保留换行符，从HTML中提取原始文本）
+ * 获取编辑器内容（纯文本）
  */
 function getEditorContent() {
-    // 获取HTML内容
-    let html = DOM.codeEditor.innerHTML;
+    // 遍历编辑器的所有子节点，正确处理换行
+    let content = '';
+    const childNodes = DOM.codeEditor.childNodes;
     
-    // 将<br>标签替换为换行符
-    html = html.replace(/<br\s*\/?>/gi, '\n');
+    for (let i = 0; i < childNodes.length; i++) {
+        const node = childNodes[i];
+        
+        if (node.nodeType === Node.TEXT_NODE) {
+            // 文本节点，直接添加内容
+            content += node.textContent || '';
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const tagName = node.tagName?.toLowerCase();
+            
+            if (tagName === 'br') {
+                // <br> 标签表示换行
+                content += '\n';
+            } else if (tagName === 'div' || tagName === 'p') {
+                // <div> 或 <p> 表示新的一行
+                // 添加元素的内容，然后在末尾添加换行符
+                content += node.textContent || '';
+                content += '\n';
+            } else {
+                // 其他元素（如果有），添加其文本内容
+                content += node.textContent || '';
+            }
+        }
+    }
     
-    // 将</div>等块级元素的结束标签替换为换行符
-    html = html.replace(/<\/div>/gi, '\n');
-    html = html.replace(/<\/p>/gi, '\n');
-    
-    // 创建临时元素来提取纯文本
-    const temp = document.createElement('div');
-    temp.innerHTML = html;
-    
-    // 获取文本内容
-    let content = temp.textContent || temp.innerText || '';
-    
-    // 移除开头和结尾的多余换行符
-    content = content.replace(/^\n+/, '').replace(/\n+$/, '');
+    // 移除末尾可能多余的换行符
+    content = content.replace(/\n+$/, '');
     
     return content;
 }
