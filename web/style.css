@@ -367,7 +367,9 @@ body {
     line-height: 1.5;
     padding: 10px;
     overflow: auto;
-    white-space: pre;
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: break-word;
     outline: none;
     cursor: text;
 }
