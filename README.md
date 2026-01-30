@@ -384,7 +384,7 @@ A: 确保系统已安装对应的编解码器
 
 ## 许可证
 
-MIT License
+GPL-3.0 License
 
 ## 贡献
 
