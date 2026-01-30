@@ -392,9 +392,11 @@ MIT License
 
 ## 联系方式
 
-开发者群聊: [QQ](675155390)
-开发者邮箱: [GMAIL](mikulxz08@gmail.com)
-开发者账号: [BiliBili](3546843237582920)
+开发者群聊: [QQ: 675155390]
+
+开发者邮箱: [GMAIL: mikulxz08@gmail.com]
+
+开发者账号: [BiliBili: 3546843237582920]
 
 ---
 
