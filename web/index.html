@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mikufy v2.1 - 代码编辑器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Logo区域 - 左上角 -->
+    <div id="logo-container">
+        <img src="../Mikufy.png" alt="Mikufy Logo" id="logo-img">
+    </div>
+
+    <!-- 主界面容器 -->
+    <div id="main-container">
+        <!-- 左侧面板 -->
+        <div id="left-panel">
+            <!-- 文件操作按钮区域 -->
+            <div id="file-toolbar">
+                <button id="btn-open-folder" title="打开文件夹 (Ctrl+O)">
+                    <img src="../Icons/Folder-Open.png" alt="打开文件夹">
+                </button>
+                <button id="btn-new-folder" title="新建文件夹 (Ctrl+F)">
+                    <img src="../Icons/Folder-New.png" alt="新建文件夹">
+                </button>
+                <button id="btn-new-file" title="新建文件 (Ctrl+N)">
+                    <img src="../Icons/File-New.png" alt="新建文件">
+                </button>
+            </div>
+
+            <!-- 当前路径显示区域 -->
+            <div id="path-display">
+                <div id="current-path">无</div>
+                <button id="btn-back" title="返回上级目录" disabled>
+                    <img src="../Icons/Put-away.png" alt="返回">
+                </button>
+            </div>
+
+            <!-- 文件树区域 -->
+            <div id="file-tree">
+                <!-- 文件树内容将通过JavaScript动态生成 -->
+            </div>
+        </div>
+
+        <!-- 右侧代码编辑区域 -->
+        <div id="right-panel">
+            <!-- 标签页区域 -->
+            <div id="tabs-container">
+                <div id="tabs-scroll">
+                    <!-- 标签页将通过JavaScript动态生成 -->
+                </div>
+                <!-- 标签页水平滚动条 -->
+                <div id="tabs-scrollbar">
+                    <div id="tabs-scrollbar-thumb"></div>
+                </div>
+            </div>
+
+            <!-- 代码编辑器区域 -->
+            <div id="editor-container">
+                <!-- 行号区域 -->
+                <div id="line-numbers">
+                    <!-- 行号将通过JavaScript动态生成 -->
+                </div>
+
+                <!-- 代码编辑区域 -->
+                <div id="code-editor">
+                    <!-- 代码内容将通过JavaScript动态生成 -->
+                </div>
+
+                <!-- 垂直滚动条 -->
+                <div id="vertical-scrollbar">
+                    <div id="vertical-scrollbar-thumb"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div id="context-menu" style="display: none;">
+        <div id="context-rename">重命名此选项</div>
+        <div id="context-delete">删除此选项</div>
+    </div>
+
+    <!-- 新建对话框 -->
+    <div id="new-dialog" style="display: none;">
+        <div id="new-dialog-content">
+            <h3 id="new-dialog-title">新建</h3>
+            <input type="text" id="new-dialog-input" placeholder="请输入名称">
+            <div id="new-dialog-buttons">
+                <button id="new-dialog-confirm">确定</button>
+                <button id="new-dialog-cancel">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
