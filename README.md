@@ -57,7 +57,7 @@ Mikufy/
 │   └── Mikufy.png         # Logo图片
 ├── build.sh               # 一键编译脚本
 ├── clean.sh               # 一键清理脚本
-├── 依赖.txt               # 依赖列表文件
+├── Explain.txt               # 依赖列表文件
 └── README.md              # 本文件
 ```
 
