@@ -38,7 +38,7 @@ Mikufy 是一个美观、轻量级、高性能的代码编辑器，专为 Linux 
 
 ```
 Mikufy/
-├── src/                    # C++ 源代码目录
+├── src/                   # C++ 源代码目录
 │   ├── main.cpp           # 主程序入口
 │   ├── file_manager.cpp   # 文件管理器实现
 │   ├── web_server.cpp     # Web服务器实现
@@ -57,7 +57,7 @@ Mikufy/
 │   └── Mikufy.png         # Logo图片
 ├── build.sh               # 一键编译脚本
 ├── clean.sh               # 一键清理脚本
-├── Explain.txt               # 依赖列表文件
+├── Explain.txt            # 依赖列表文件
 └── README.md              # 本文件
 ```
 
