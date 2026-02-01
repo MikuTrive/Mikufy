@@ -1,6 +1,9 @@
 # Mikufy v2.2(stable)
 
 - Mikufy 第一个稳定版本发布 为 v2.2
+- 我们目前将只提供`Fedora43`的Mikufy支持(不同发行版依赖包版本各有不同)
+- 如果您愿意在自己的发行版上进行适配Mikufy可联系我们
+
 
 ## 项目简介
 
@@ -59,8 +62,10 @@ Mikufy/
 │   └── Mikufy.png         # Logo图片
 ├── build.sh               # 一键编译脚本
 ├── clean.sh               # 一键清理脚本
-├── Explain.txt            # 依赖列表文件
-└── README.md              # 本文件
+│── Explain.txt            # 依赖列表文件
+├── README.md              # 本文件
+├── desktop.sh             # 桌面程序安装脚本
+
 ```
 
 
@@ -247,13 +252,13 @@ sudo dnf install gcc-c++ pkgconfig webkit2gtk4.1-devel gtk3-devel glib2-devel li
 ./clean.sh
 ```
 
-### 安装建议声明
+### 桌面程序安装
 
-- 如果只想正常使用此Mikufy编辑器
-- 可以创建一个Desktop文件到~/Desktop或~/.local/share/applications或/usr/share/applications当中
-- 如果要自行开发新功能与前后端输出信息, 则直接在终端当前运行此可执行二进制文件
-- 如果不喜欢此编辑器的背景图请到源代码根目录下的web子目录内
-- 将Background.png改为喜欢的并命名为Background.png
+```
+# 桌面程序安装脚本
+./desktop.sh
+```
+
 
 ## 编译选项说明
 
