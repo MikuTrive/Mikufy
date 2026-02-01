@@ -1,9 +1,9 @@
 # Mikufy v2.2(stable)
 
 - Mikufy 第一个稳定版本发布 为 v2.2
-- 我们目前将只提供`Fedora43`的Mikufy支持(不同发行版依赖包版本各有不同)
-- 如果您愿意在自己的发行版上进行适配Mikufy可联系我们
-
+- 我们目前将只提供Fedora43支持的Mikufy(不同发行版依赖包版本不依)
+- 如果您仍愿意使用可切换到v2.1分支也就是sid版的mikufy还有未完成的功能bug需修复
+- 此v2.2(stable)为完整的稳定版发布(可联系我们合作开发贡献)
 
 ## 项目简介
 
@@ -29,7 +29,7 @@ Mikufy 是一个美观、轻量级、高性能的代码编辑器，专为 Linux 
 - 🔍 **右键菜单** - 便捷的右键菜单操作
 
 ### 快捷键列表
-    快捷键     
+    快捷键
 |------------|
 |   `Ctrl+S` | 保存所有文件 
 |   `F5`     | 刷新编辑器内容 
@@ -37,7 +37,7 @@ Mikufy 是一个美观、轻量级、高性能的代码编辑器，专为 Linux 
 |   `Ctrl+F` | 新建文件夹
 |   `Ctrl+N` | 新建文件
 |   `Tab`    | 自动缩进(4格)
-|   `F11`    | 全屏      
+|   `F11`    | 全屏
 |------------|
 ## 项目结构
 
@@ -62,10 +62,9 @@ Mikufy/
 │   └── Mikufy.png         # Logo图片
 ├── build.sh               # 一键编译脚本
 ├── clean.sh               # 一键清理脚本
-│── Explain.txt            # 依赖列表文件
+├── Explain.txt            # 依赖列表文件
 ├── README.md              # 本文件
-├── desktop.sh             # 桌面程序安装脚本
-
+└── desktop.sh             # 桌面程序安装脚本
 ```
 
 
@@ -252,9 +251,9 @@ sudo dnf install gcc-c++ pkgconfig webkit2gtk4.1-devel gtk3-devel glib2-devel li
 ./clean.sh
 ```
 
-### 桌面程序安装
+### 桌面程序安装脚本
 
-```
+```bash
 # 桌面程序安装脚本
 ./desktop.sh
 ```
