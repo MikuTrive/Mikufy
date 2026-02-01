@@ -1,5 +1,5 @@
 /**
- * Mikufy v2.1 - 代码编辑器前端JavaScript
+ * Mikufy v2.2(stable) - 代码编辑器前端JavaScript
  * 处理所有前端交互逻辑，通过C++后端API与系统交互
  */
 
@@ -518,6 +518,13 @@ function activateTab(index) {
     AppState.activeTab = index;
     const tab = AppState.openTabs[index];
     
+    // 调试：打印切换前的内容
+    console.log('=== 切换到标签页 ===');
+    console.log('标签页:', tab.name);
+    console.log('内容长度:', tab.content.length);
+    console.log('内容预览:', tab.content.substring(0, 200));
+    console.log('换行符数量:', (tab.content.match(/\n/g) || []).length);
+    
     // 渲染标签页高亮
     document.querySelectorAll('.tab-item').forEach((item, i) => {
         item.classList.toggle('active', i === index);
@@ -616,21 +623,44 @@ function syntaxHighlight(code) {
 function showCodeContent(content) {
     DOM.editorContainer.classList.remove('media-mode');
     DOM.lineNumbers.style.opacity = '0.5';
-    
+
     // 设置代码内容为可编辑
     DOM.codeEditor.contentEditable = 'true';
-    
-    // 直接使用纯文本，不添加HTML标签
-    // 这样可以避免HTML标签污染文件内容
+
+    // 清空编辑器
+    DOM.codeEditor.innerHTML = '';
+
     if (content) {
-        DOM.codeEditor.textContent = content;
-    } else {
-        DOM.codeEditor.textContent = '';
+        // 调试：打印显示前的内容
+        console.log('=== showCodeContent ===');
+        console.log('内容长度:', content.length);
+        console.log('换行符数量:', (content.match(/\n/g) || []).length);
+        console.log('内容预览:', content.substring(0, 300));
+        
+        // 按行分割内容，为每一行创建一个 <div> 元素
+        // 这样可以确保空行也被正确保存
+        // 注意：<div> 是块级元素，自动换行，不需要额外的 <br>
+        const lines = content.split('\n');
+        
+        console.log('分割后的行数:', lines.length);
+        console.log('前5行:', lines.slice(0, 5).map(l => JSON.stringify(l)));
+
+        lines.forEach((line, index) => {
+            const lineDiv = document.createElement('div');
+            // 设置行内容，即使为空也保留这个 div（代表空行）
+            // 使用 innerHTML 可以避免 contenteditable 的自动规范化
+            lineDiv.innerHTML = '';
+            lineDiv.appendChild(document.createTextNode(line));
+            
+            DOM.codeEditor.appendChild(lineDiv);
+        });
+        
+        console.log('创建的div数量:', DOM.codeEditor.childElementCount);
     }
-    
+
     // 更新行号
-    updateLineNumbers(content);
-    
+    updateLineNumbers(DOM.codeEditor.textContent);
+
     // 重置滚动条
     DOM.codeEditor.scrollTop = 0;
 }
@@ -717,50 +747,41 @@ window.playAudio = function(path) {
  * @param {string} content 代码内容
  */
 function updateLineNumbers(content) {
-    // 方法1：基于文本内容计算行数（适用于使用 textContent 的情况）
-    let lines = 1;
-    if (content) {
-        // 统计换行符的数量
-        const newLines = (content.match(/\n/g) || []).length;
-        lines = newLines + 1;
-    }
-    
-    // 方法2：基于实际DOM元素计算行数（更准确，适用于 contentEditable）
-    // 获取编辑器中所有的文本节点和换行元素
+    // 获取编辑器中所有子节点
     const childNodes = DOM.codeEditor.childNodes;
-    let domLines = 0;
-    
+    let lines = 0;
+
     for (let i = 0; i < childNodes.length; i++) {
         const node = childNodes[i];
-        
+
         if (node.nodeType === Node.TEXT_NODE) {
             // 文本节点，计算其中的换行符数量
             const textContent = node.textContent || '';
             const newLines = (textContent.match(/\n/g) || []).length;
-            domLines += newLines + 1;
+            lines += newLines + 1;
         } else if (node.nodeType === Node.ELEMENT_NODE) {
             const tagName = node.tagName?.toLowerCase();
-            // <br> 标签表示换行
+            // <br> 标签表示换行（一行）
             if (tagName === 'br') {
-                domLines++;
+                lines++;
             }
-            // <div> 等块级元素也表示新的一行
+            // <div> 或 <p> 等块级元素表示新的一行（即使是空的也算一行）
             else if (tagName === 'div' || tagName === 'p') {
-                domLines++;
+                lines++;
             }
         }
     }
-    
-    // 如果 DOM 元素的行数更多，使用 DOM 元素的行数
-    if (domLines > lines) {
-        lines = domLines;
+
+    // 如果没有找到任何行，至少显示1行
+    if (lines === 0) {
+        lines = 1;
     }
-    
+
     let lineNumbersHtml = '';
     for (let i = 1; i <= lines; i++) {
         lineNumbersHtml += `<div class="line-number">${i}</div>`;
     }
-    
+
     DOM.lineNumbers.innerHTML = lineNumbersHtml;
 }
 
@@ -996,35 +1017,36 @@ async function handleNewConfirm() {
 function showAboutPage() {
     const aboutHtml = `
         <div class="about-content">
-            <div class="about-info">
-                <h1>Mikufy v2.1</h1>
-                <p>Mikufy 是一个美观、轻量级、高性能的代码编辑器，专为 Linux 系统设计。</p>
-                
-                <h2>快捷键</h2>
-                <ul>
-                    <li><kbd>Ctrl+S</kbd> - 保存所有文件</li>
-                    <li><kbd>F5</kbd> - 刷新</li>
-                    <li><kbd>Ctrl+O</kbd> - 打开文件夹</li>
-                    <li><kbd>Ctrl+F</kbd> - 新建文件夹</li>
-                    <li><kbd>Ctrl+N</kbd> - 新建文件</li>
-                    <li><kbd>Tab</kbd> - 自动缩进（4格）</li>
-                </ul>
-                
-                <h2>功能</h2>
-                <ul>
-                    <li>支持多种编程语言语法高亮</li>
-                    <li>文件树导航</li>
-                    <li>多标签页编辑</li>
-                    <li>图片、视频、音频预览</li>
-                    <li>右键菜单（重命名、删除）</li>
-                    <li>更多等你来提供</li>
-                </ul>
-            </div>
             <div class="about-logo">
                 <img src="../Mikufy.png" alt="Mikufy Logo">
             </div>
+            <div class="about-info">
+                <div class="about-shortcuts">
+                    <h2>快捷键</h2>
+                    <ul>
+                        <li><kbd>Ctrl+S</kbd> - 保存所有文件</li>
+                        <li><kbd>F5</kbd> - 刷新</li>
+                        <li><kbd>F11</kbd> - 全屏切换</li>
+                        <li><kbd>Ctrl+O</kbd> - 打开文件夹</li>
+                        <li><kbd>Ctrl+F</kbd> - 新建文件夹</li>
+                        <li><kbd>Ctrl+N</kbd> - 新建文件</li>
+                        <li><kbd>Tab</kbd> - 自动缩进（4格）</li>
+                    </ul>
+                </div>
+                <div class="about-features">
+                    <h2>功能</h2>
+                    <ul>
+                        <li>支持多种编程语言语法高亮</li>
+                        <li>文件树导航</li>
+                        <li>多标签页编辑</li>
+                        <li>图片、视频、音频预览</li>
+                        <li>右键菜单（重命名、删除）</li>
+                        <li>更多等你来提供</li>
+                    </ul>
+                </div>
+            </div>
         </div>`;
-    
+
     DOM.codeEditor.innerHTML = aboutHtml;
     DOM.lineNumbers.innerHTML = '';
 }
@@ -1051,27 +1073,24 @@ function updateTabsScrollbar() {
 function syncScroll() {
     const scrollTop = DOM.codeEditor.scrollTop;
     const scrollHeight = DOM.codeEditor.scrollHeight - DOM.codeEditor.clientHeight;
-    
-    if (scrollHeight > 0) {
-        const thumbTop = (scrollTop / scrollHeight) * (DOM.verticalScrollbar.clientHeight - DOM.verticalScrollbarThumb.clientHeight);
-        DOM.verticalScrollbarThumb.style.top = thumbTop + 'px';
-    }
-    
+
     // 同步行号滚动
     DOM.lineNumbers.scrollTop = scrollTop;
+
+    // 同步自定义滚动条位置
+    if (scrollHeight > 0) {
+        const thumbHeight = DOM.verticalScrollbarThumb.clientHeight;
+        const trackHeight = DOM.verticalScrollbar.clientHeight;
+        const thumbTop = (scrollTop / scrollHeight) * (trackHeight - thumbHeight);
+        DOM.verticalScrollbarThumb.style.top = Math.max(0, Math.min(thumbTop, trackHeight - thumbHeight)) + 'px';
+    }
 }
 
 /**
  * 同步标签页滚动
  */
 function syncTabsScroll() {
-    const scrollLeft = DOM.tabsScroll.scrollLeft;
-    const scrollWidth = DOM.tabsScroll.scrollWidth - DOM.tabsScroll.clientWidth;
-    
-    if (scrollWidth > 0) {
-        const thumbLeft = (scrollLeft / scrollWidth) * (DOM.tabsScrollbar.clientWidth - DOM.tabsScrollbarThumb.clientWidth);
-        DOM.tabsScrollbarThumb.style.left = thumbLeft + 'px';
-    }
+    // 标签页滚动条已隐藏，此函数不再需要更新滚动条位置
 }
 
 /**
@@ -1180,29 +1199,6 @@ function initEventListeners() {
         e.preventDefault();
     };
     
-    document.onmousemove = (e) => {
-        if (!isVerticalDragging) {
-            return;
-        }
-        
-        const rect = DOM.verticalScrollbar.getBoundingClientRect();
-        const thumbHeight = DOM.verticalScrollbarThumb.clientHeight;
-        const maxTop = DOM.verticalScrollbar.clientHeight - thumbHeight;
-        let newTop = e.clientY - rect.top - thumbHeight / 2;
-        
-        newTop = Math.max(0, Math.min(newTop, maxTop));
-        DOM.verticalScrollbarThumb.style.top = newTop + 'px';
-        
-        // 同步代码编辑器滚动
-        const scrollRatio = newTop / maxTop;
-        const maxScroll = DOM.codeEditor.scrollHeight - DOM.codeEditor.clientHeight;
-        DOM.codeEditor.scrollTop = scrollRatio * maxScroll;
-    };
-    
-    document.onmouseup = () => {
-        isVerticalDragging = false;
-    };
-    
     // 标签页滚动条拖动
     let isTabsDragging = false;
     DOM.tabsScrollbarThumb.onmousedown = (e) => {
@@ -1210,24 +1206,76 @@ function initEventListeners() {
         e.preventDefault();
     };
     
+    // 合并的鼠标移动事件处理
     document.onmousemove = (e) => {
-        if (!isTabsDragging) {
-            return;
+        // 处理垂直滚动条拖动
+        if (isVerticalDragging) {
+            const rect = DOM.verticalScrollbar.getBoundingClientRect();
+            const thumbHeight = DOM.verticalScrollbarThumb.clientHeight;
+            const maxTop = DOM.verticalScrollbar.clientHeight - thumbHeight;
+            let newTop = e.clientY - rect.top - thumbHeight / 2;
+            
+            newTop = Math.max(0, Math.min(newTop, maxTop));
+            DOM.verticalScrollbarThumb.style.top = newTop + 'px';
+            
+            // 同步代码编辑器滚动
+            const scrollRatio = newTop / maxTop;
+            const maxScroll = DOM.codeEditor.scrollHeight - DOM.codeEditor.clientHeight;
+            DOM.codeEditor.scrollTop = scrollRatio * maxScroll;
         }
         
-        const rect = DOM.tabsScrollbar.getBoundingClientRect();
-        const thumbWidth = DOM.tabsScrollbarThumb.clientWidth;
-        const maxLeft = DOM.tabsScrollbar.clientWidth - thumbWidth;
-        let newLeft = e.clientX - rect.left - thumbWidth / 2;
-        
-        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-        DOM.tabsScrollbarThumb.style.left = newLeft + 'px';
-        
-        // 同步标签页滚动
-        const scrollRatio = newLeft / maxLeft;
-        const maxScroll = DOM.tabsScroll.scrollWidth - DOM.tabsScroll.clientWidth;
-        DOM.tabsScroll.scrollLeft = scrollRatio * maxScroll;
+        // 处理标签页滚动条拖动
+        if (isTabsDragging) {
+            const rect = DOM.tabsScrollbar.getBoundingClientRect();
+            const thumbWidth = DOM.tabsScrollbarThumb.clientWidth;
+            const maxLeft = DOM.tabsScrollbar.clientWidth - thumbWidth;
+            let newLeft = e.clientX - rect.left - thumbWidth / 2;
+            
+            newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+            DOM.tabsScrollbarThumb.style.left = newLeft + 'px';
+            
+            // 同步标签页滚动
+            const scrollRatio = newLeft / maxLeft;
+            const maxScroll = DOM.tabsScroll.scrollWidth - DOM.tabsScroll.clientWidth;
+            DOM.tabsScroll.scrollLeft = scrollRatio * maxScroll;
+        }
     };
+    
+    // 合并的鼠标释放事件处理
+    document.onmouseup = () => {
+        isVerticalDragging = false;
+        isTabsDragging = false;
+    };
+    
+    // 垂直滚动条点击跳转
+    DOM.verticalScrollbar.onclick = (e) => {
+        if (e.target === DOM.verticalScrollbarThumb) return;
+        
+        const rect = DOM.verticalScrollbar.getBoundingClientRect();
+        const thumbHeight = DOM.verticalScrollbarThumb.clientHeight;
+        const clickY = e.clientY - rect.top;
+        
+        const maxTop = DOM.verticalScrollbar.clientHeight - thumbHeight;
+        let newTop = clickY - thumbHeight / 2;
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+        
+        const scrollRatio = newTop / maxTop;
+        const maxScroll = DOM.codeEditor.scrollHeight - DOM.codeEditor.clientHeight;
+        DOM.codeEditor.scrollTop = scrollRatio * maxScroll;
+    };
+    
+    // 鼠标滚轮支持标签页滚动
+    DOM.tabsContainer = document.getElementById('tabs-container');
+    DOM.tabsContainer.addEventListener('wheel', (e) => {
+        // 支持横向和纵向滚轮都可以横向滚动标签页
+        if (e.deltaX !== 0) {
+            e.preventDefault();
+            DOM.tabsScroll.scrollLeft += e.deltaX;
+        } else if (e.deltaY !== 0) {
+            e.preventDefault();
+            DOM.tabsScroll.scrollLeft += e.deltaY;
+        }
+    });
     
     // 键盘快捷键
     document.onkeydown = (e) => {
@@ -1241,6 +1289,12 @@ function initEventListeners() {
         if (e.key === 'F5') {
             e.preventDefault();
             handleRefresh();
+        }
+        
+        // F11 - 全屏切换
+        if (e.key === 'F11') {
+            e.preventDefault();
+            handleToggleFullscreen();
         }
         
         // Ctrl+O - 打开文件夹
@@ -1278,12 +1332,32 @@ function initEventListeners() {
     // 鼠标滚轮支持标签页滚动
     DOM.tabsContainer = document.getElementById('tabs-container');
     DOM.tabsContainer.addEventListener('wheel', (e) => {
-        if (e.deltaY !== 0) {
-            return;
+        // 支持横向和纵向滚轮都可以横向滚动标签页
+        if (e.deltaX !== 0) {
+            e.preventDefault();
+            DOM.tabsScroll.scrollLeft += e.deltaX;
+        } else if (e.deltaY !== 0) {
+            e.preventDefault();
+            DOM.tabsScroll.scrollLeft += e.deltaY;
         }
-        e.preventDefault();
-        DOM.tabsScroll.scrollLeft += e.deltaX;
     });
+    
+    // 垂直滚动条点击跳转
+    DOM.verticalScrollbar.onclick = (e) => {
+        if (e.target === DOM.verticalScrollbarThumb) return;
+        
+        const rect = DOM.verticalScrollbar.getBoundingClientRect();
+        const thumbHeight = DOM.verticalScrollbarThumb.clientHeight;
+        const clickY = e.clientY - rect.top;
+        
+        const maxTop = DOM.verticalScrollbar.clientHeight - thumbHeight;
+        let newTop = clickY - thumbHeight / 2;
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+        
+        const scrollRatio = newTop / maxTop;
+        const maxScroll = DOM.codeEditor.scrollHeight - DOM.codeEditor.clientHeight;
+        DOM.codeEditor.scrollTop = scrollRatio * maxScroll;
+    };
     
     // 代码编辑器输入事件
     DOM.codeEditor.oninput = () => {
@@ -1308,34 +1382,50 @@ function getEditorContent() {
     // 遍历编辑器的所有子节点，正确处理换行
     let content = '';
     const childNodes = DOM.codeEditor.childNodes;
-    
+
+    console.log('=== getEditorContent ===');
+    console.log('子节点数量:', childNodes.length);
+
     for (let i = 0; i < childNodes.length; i++) {
         const node = childNodes[i];
-        
+
         if (node.nodeType === Node.TEXT_NODE) {
             // 文本节点，直接添加内容
-            content += node.textContent || '';
+            // 即使是空字符串也要添加，因为可能包含空格
+            const text = node.textContent || '';
+            content += text;
+            if (text) {
+                console.log('文本节点:', JSON.stringify(text));
+            }
         } else if (node.nodeType === Node.ELEMENT_NODE) {
             const tagName = node.tagName?.toLowerCase();
-            
+
             if (tagName === 'br') {
                 // <br> 标签表示换行
                 content += '\n';
+                console.log('BR元素');
             } else if (tagName === 'div' || tagName === 'p') {
                 // <div> 或 <p> 表示新的一行
-                // 添加元素的内容，然后在末尾添加换行符
-                content += node.textContent || '';
+                // 先检查是否是空行（没有任何子节点或只有空白字符）
+                const divContent = node.textContent || '';
+                content += divContent;
+                // 添加换行符，即使 div 是空的也添加
                 content += '\n';
+                console.log('DIV元素:', JSON.stringify(divContent));
             } else {
                 // 其他元素（如果有），添加其文本内容
                 content += node.textContent || '';
+                console.log('其他元素:', tagName, JSON.stringify(node.textContent || ''));
             }
         }
     }
-    
-    // 移除末尾可能多余的换行符
-    content = content.replace(/\n+$/, '');
-    
+
+    console.log('最终内容长度:', content.length);
+    console.log('换行符数量:', (content.match(/\n/g) || []).length);
+    console.log('内容预览:', content.substring(0, 300));
+
+    // 不再移除末尾的换行符，保留用户输入的所有空行
+
     return content;
 }
 
@@ -1371,6 +1461,19 @@ async function handleRefresh() {
     
     if (AppState.currentPath) {
         await loadDirectoryContents(AppState.currentPath);
+    }
+}
+
+/**
+ * 处理全屏切换
+ */
+function handleToggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.error('进入全屏失败:', err);
+        });
+    } else {
+        document.exitFullscreen();
     }
 }
 
@@ -1428,7 +1531,7 @@ function init() {
     AppState.activeTab = 0;
     renderTabs();
     
-    console.log('Mikufy v2.1 初始化完成');
+    console.log('Mikufy v2.2(stable) 初始化完成');
 }
 
 // 页面加载完成后初始化

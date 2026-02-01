@@ -1,5 +1,4 @@
-/**
- * Mikufy v2.5 - 窗口管理器头文件
+/* Mikufy v2.2(stable) - 窗口管理器头文件
  * 负责GTK窗口和WebKitWebView的创建与管理
  */
 
@@ -9,95 +8,69 @@
 #include "main.h"
 #include "web_server.h"
 
-/**
- * 窗口管理器类
+/* 窗口管理器类
  * 管理GTK窗口和WebKit WebView
  */
-class WindowManager {
+class WindowManager
+{
 public:
-    WindowManager(WebServer* webServer);
-    ~WindowManager();
-    
-    // 禁止拷贝和移动
-    WindowManager(const WindowManager&) = delete;
-    WindowManager& operator=(const WindowManager&) = delete;
-    WindowManager(WindowManager&&) = delete;
-    WindowManager& operator=(WindowManager&&) = delete;
-    
-    /**
-     * 初始化窗口
-     * @return 是否成功
-     */
-    bool init();
-    
-    /**
-     * 显示窗口
-     */
-    void show();
-    
-    /**
-     * 运行GTK主循环
-     */
-    void run();
-    
-    /**
-     * 关闭窗口
-     */
-    void close();
-    
-    /**
-     * 获取当前工作目录（通过文件对话框选择）
-     * @return 工作目录路径，取消返回空字符串
-     */
-    std::string getCurrentWorkingDirectory();
+	WindowManager(WebServer *web_server);
+	~WindowManager(void);
 
-    /**
-     * 加载前端页面
-     */
-    void loadFrontendPage();
+	/* 禁止拷贝和移动 */
+	WindowManager(const WindowManager &) = delete;
+	WindowManager &operator=(const WindowManager &) = delete;
+	WindowManager(WindowManager &&) = delete;
+	WindowManager &operator=(WindowManager &&) = delete;
 
-    /**
-     * 异步打开文件夹对话框
-     * @return 工作目录路径
-     */
-    std::string openFolderDialogAsync();
+	/* 初始化窗口 */
+	bool init(void);
+
+	/* 显示窗口 */
+	void show(void);
+
+	/* 运行GTK主循环 */
+	void run(void);
+
+	/* 关闭窗口 */
+	void close(void);
+
+	/* 获取当前工作目录（通过文件对话框选择） */
+	std::string get_current_working_directory(void);
+
+	/* 加载前端页面 */
+	void load_frontend_page(void);
+
+	/* 异步打开文件夹对话框 */
+	std::string open_folder_dialog_async(void);
 
 private:
-    WebServer* webServer;
-    GtkWidget* window;
-    WebKitWebView* webView;
-    std::string currentWorkingDirectory;
-    std::mutex mutex;
-    std::string dialogResult;
-    bool dialogWaiting;
-    GCond dialogCond;
-    GCond* dialogReady;
-    GMutex dialogMutex;
-    
-    /**
-     * 创建GTK窗口
-     */
-    bool createWindow();
-    
-    /**
-     * 创建WebKit WebView
-     */
-    bool createWebView();
-    
-    /**
-     * 处理窗口关闭事件
-     */
-    static gboolean onWindowClose(GtkWidget* widget, GdkEvent* event, gpointer user_data);
-    
-    /**
-     * 处理窗口销毁事件
-     */
-    static void onWindowDestroy(GtkWidget* widget, gpointer user_data);
-    
-    /**
-     * 处理WebView加载完成事件
-     */
-    static void onWebViewLoadChanged(WebKitWebView* webView, WebKitLoadEvent loadEvent, gpointer user_data);
+	WebServer *web_server;
+	GtkWidget *window;
+	WebKitWebView *web_view;
+	std::string current_working_directory;
+	std::mutex mutex;
+	std::string dialog_result;
+	bool dialog_waiting;
+	GCond dialog_cond;
+	GCond *dialog_ready;
+	GMutex dialog_mutex;
+	GMainLoop *main_loop;
+
+	/* 创建GTK窗口 */
+	bool create_window(void);
+
+	/* 创建WebKit WebView */
+	bool create_web_view(void);
+
+	/* 处理窗口关闭事件 (GTK4: close-request 信号) */
+	static gboolean on_window_close(GtkWidget *widget,
+					gpointer user_data);
+
+	/* 处理WebView加载完成事件 */
+	static void on_web_view_load_changed(WebKitWebView *web_view,
+					     WebKitLoadEvent load_event,
+					     gpointer user_data);
 };
 
-#endif // MIKUFY_WINDOW_MANAGER_H
+#endif /* MIKUFY_WINDOW_MANAGER_H */
