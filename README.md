@@ -1,4 +1,6 @@
-# Mikufy v2.1
+# Mikufy v2.2(stable)
+
+- Mikufy 第一个稳定版本发布 为 v2.2
 
 ## 项目简介
 
@@ -6,7 +8,7 @@ Mikufy 是一个美观、轻量级、高性能的代码编辑器，专为 Linux 
 
 ## 版本信息
 
-- **当前版本**: v2.1
+- **当前版本**: v2.2(stable)
 - **平台**: Linux (Wayland/XWayland)
 - **开发语言**: C++ (C++17标准)
 - **前端技术**: HTML5, CSS3, JavaScript
@@ -17,7 +19,6 @@ Mikufy 是一个美观、轻量级、高性能的代码编辑器，专为 Linux 
 ### 核心功能
 - 📁 **文件树导航** - 支持子目录展开、折叠、返回上级目录
 - 📑 **多标签页编辑** - 支持同时打开多个文件，快速切换
-- 🎨 **语法高亮** - 支持 C/C++、JavaScript、TypeScript、Python 等多种语言 -- (目前因为特殊原因暂时取消此功能)
 - 💾 **保存功能** - 支持手动保存（Ctrl+S）
 - 🖼️ **媒体预览** - 支持查看图片（.png, .jpg, .jpeg）、视频（.mp4）、音频（.mp3, .wav）
 - 🔄 **快捷键支持** - 丰富的键盘快捷键，提高编辑效率
@@ -25,15 +26,16 @@ Mikufy 是一个美观、轻量级、高性能的代码编辑器，专为 Linux 
 - 🔍 **右键菜单** - 便捷的右键菜单操作
 
 ### 快捷键列表
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl+S` | 保存所有文件 |
-| `F5` | 刷新编辑器内容 |
-| `Ctrl+O` | 打开文件夹 |
-| `Ctrl+F` | 新建文件夹 |
-| `Ctrl+N` | 新建文件 |
-| `Tab` | 自动缩进（4格） |
-
+    快捷键     
+|------------|
+|   `Ctrl+S` | 保存所有文件 
+|   `F5`     | 刷新编辑器内容 
+|   `Ctrl+O` | 打开文件夹
+|   `Ctrl+F` | 新建文件夹
+|   `Ctrl+N` | 新建文件
+|   `Tab`    | 自动缩进(4格)
+|   `F11`    | 全屏      
+|------------|
 ## 项目结构
 
 ```
@@ -213,37 +215,14 @@ Mikufy/
 
 ## 依赖安装
 
-### Ubuntu 25.10
 
-```bash
-sudo apt update
-sudo apt install -y g++ pkg-config libwebkit2gtk-4.1-dev libgtk-3-dev libglib2.0-dev libmagic-dev nlohmann-json3-dev
-```
 
-### Debian / Ubuntu（通用）
-
-```bash
-sudo apt update
-sudo apt install -y g++ pkg-config libwebkit2gtk-4.1-dev libgtk-3-dev libglib2.0-dev libmagic-dev nlohmann-json3-dev
-```
-
-### Arch Linux
-
-```bash
-sudo pacman -S gcc pkgconf webkit2gtk-4.1 gtk3 glib2 libmagic nlohmann-json
-```
-
-### Fedora / RHEL / CentOS
+### Fedora 43
 
 ```bash
 sudo dnf install gcc-c++ pkgconfig webkit2gtk4.1-devel gtk3-devel glib2-devel libmagic-devel nlohmann-json-devel
 ```
 
-### OpenSUSE
-
-```bash
-sudo zypper install gcc-c++ pkgconfig webkit2gtk-4.1-devel gtk3-devel glib2-devel libmagic-devel nlohmann_json-devel
-```
 
 ## 编译和运行
 
@@ -400,4 +379,4 @@ GPL-3.0 License
 
 ---
 
-**Mikufy v2.1** - 让代码编辑更简单
+**Mikufy v2.2(stable)** - 让代码编辑更简单

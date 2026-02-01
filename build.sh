@@ -1,6 +1,5 @@
-#!/bin/bash
 #
-# Mikufy v2.1 - 一键编译脚本
+# Mikufy v2.2(stable) - 一键编译脚本
 # 编译整个项目为单个可执行文件
 #
 
@@ -13,15 +12,15 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-VERSION="2.1"
+VERSION="2.2(stable)"
 OUTPUT_FILE="mikufy"
 
 # 编译器设置
 CXX="g++"
 CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Wpedantic"
 
-# 链接库
-LIBS="-lwebkit2gtk-4.1 -lgtk-3 -lgobject-2.0 -lglib-2.0 -lmagic -lnlohmann_json"
+# 链接库 (Fedora 43 使用 webkitgtk-6.0 和 gtk4)
+LIBS="-lwebkitgtk-6.0 -lgtk-4 -lgobject-2.0 -lglib-2.0 -lmagic -lnlohmann_json"
 
 # 包含路径
 INCLUDE_DIRS="-Iheaders"
@@ -58,64 +57,64 @@ print_header() {
 # 检查依赖
 check_dependencies() {
     print_info "检查编译依赖..."
-    
+
     # 检查g++
     if ! command -v g++ &> /dev/null; then
         print_error "未找到 g++ 编译器"
-        print_info "请安装: sudo apt install g++"
+        print_info "请安装: sudo dnf install gcc-c++"
         exit 1
     fi
-    
+
     # 检查pkg-config
     if ! command -v pkg-config &> /dev/null; then
         print_error "未找到 pkg-config"
-        print_info "请安装: sudo apt install pkg-config"
+        print_info "请安装: sudo dnf install pkg-config"
         exit 1
     fi
-    
-    # 检查webkit2gtk
-    if ! pkg-config --exists webkit2gtk-4.1; then
-        print_error "未找到 webkit2gtk-4.1"
-        print_info "请安装: sudo apt install libwebkit2gtk-4.1-dev"
+
+    # 检查webkitgtk-6.0 (Fedora 43)
+    if ! pkg-config --exists webkitgtk-6.0; then
+        print_error "未找到 webkitgtk-6.0"
+        print_info "请安装: sudo dnf install webkitgtk6.0-devel"
         exit 1
     fi
-    
-    # 检查gtk-3
-    if ! pkg-config --exists gtk+-3.0; then
-        print_error "未找到 gtk+-3.0"
-        print_info "请安装: sudo apt install libgtk-3-dev"
+
+    # 检查gtk-4
+    if ! pkg-config --exists gtk4; then
+        print_error "未找到 gtk-4"
+        print_info "请安装: sudo dnf install gtk4-devel"
         exit 1
     fi
-    
+
     # 检查libmagic
     if ! pkg-config --exists libmagic; then
         print_error "未找到 libmagic"
-        print_info "请安装: sudo apt install libmagic-dev"
+        print_info "请安装: sudo dnf install file-devel"
         exit 1
     fi
-    
+
     # 检查nlohmann_json
     if ! pkg-config --exists nlohmann_json; then
         print_warning "未找到 nlohmann_json，尝试使用系统头文件..."
         if [ ! -f "/usr/include/nlohmann/json.hpp" ]; then
             print_error "未找到 nlohmann/json.hpp"
-            print_info "请安装: sudo apt install nlohmann-json3-dev"
+            print_info "请安装: sudo dnf install json-devel"
             exit 1
         fi
     fi
-    
+
     print_success "所有依赖检查通过"
 }
 
 # 获取编译标志
 get_compile_flags() {
-    # 使用pkg-config获取编译和链接标志
-    CXXFLAGS+=" $(pkg-config --cflags webkit2gtk-4.1 gtk+-3.0)"
-    LDFLAGS="$(pkg-config --libs webkit2gtk-4.1 gtk+-3.0)"
-    
+    # 使用pkg-config获取编译和链接标志 (Fedora 43 使用 webkitgtk-6.0 和 gtk4)
+    CXXFLAGS+=" $(pkg-config --cflags webkitgtk-6.0 gtk4)"
+    LDFLAGS="$(pkg-config --libs webkitgtk-6.0 gtk4)"
+
     # 添加libmagic
     LDFLAGS+=" -lmagic"
-    
+
     # 添加nlohmann_json
     if pkg-config --exists nlohmann_json; then
         CXXFLAGS+=" $(pkg-config --cflags nlohmann_json)"
@@ -138,6 +137,7 @@ compile() {
     if ${COMPILE_CMD}; then
         print_success "编译成功!"
         print_info "输出文件: ${OUTPUT_FILE}"
+        print_info "缓存存储在: ~/.local/share/mikufy"
         
         # 设置可执行权限
         chmod +x ${OUTPUT_FILE}

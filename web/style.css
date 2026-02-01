@@ -1,4 +1,4 @@
-/* Mikufy v2.5 - 代码编辑器样式表 */
+/* Mikufy v2.2(stable) - 代码编辑器样式表 */
 
 /* 全局样式 */
 * {
@@ -16,7 +16,7 @@ html, body {
 
 /* 背景图设置 - 不透明度0.5 */
 body {
-    background-image: url('../Background.png');
+    background-image: url('Background.png');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -53,7 +53,7 @@ body {
     width: 280px;
     min-width: 200px;
     max-width: 400px;
-    background-color: rgba(40, 40, 50, 1.0);
+    background-color: rgba(36, 36, 46, 1.0);
     border-radius: 8px;
     overflow: hidden;
     opacity: 1.0;
@@ -64,7 +64,7 @@ body {
     display: flex;
     padding: 10px;
     gap: 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.55);
 }
 
 #file-toolbar button {
@@ -77,7 +77,7 @@ body {
 }
 
 #file-toolbar button:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.55);
 }
 
 #file-toolbar button img {
@@ -91,7 +91,7 @@ body {
     display: flex;
     align-items: center;
     padding: 8px 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.55);
 }
 
 #current-path {
@@ -101,7 +101,7 @@ body {
     border-radius: 15px;
     color: #ffffff;
     font-size: 13px;
-    background-color: rgba(30, 30, 40, 0.9);
+    background-color: rgba(26, 26, 36, 1.0);
 }
 
 #btn-back {
@@ -120,7 +120,7 @@ body {
 
 #btn-back:hover:not(:disabled) {
     transform: scale(1.1);
-    box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.95);
 }
 
 #btn-back:disabled {
@@ -148,16 +148,16 @@ body {
 }
 
 #file-tree::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 1.0);
 }
 
 #file-tree::-webkit-scrollbar-thumb {
-    background: rgba(100, 100, 120, 0.5);
+    background: rgba(100, 100, 120, 1.0);
     border-radius: 4px;
 }
 
 #file-tree::-webkit-scrollbar-thumb:hover {
-    background: rgba(120, 120, 140, 0.7);
+    background: rgba(120, 120, 140, 1.0);
 }
 
 /* 文件树项样式 */
@@ -171,24 +171,32 @@ body {
 }
 
 .file-tree-item:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.98);
 }
 
 .file-tree-item.selected {
-    background-color: rgba(74, 144, 217, 0.3);
+    background-color: rgba(0, 255, 0, 0.75);
 }
 
 .file-tree-expand-btn {
     width: 20px;
     height: 20px;
-    background: transparent;
+    background: #ff9800;
     border: none;
+    border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 5px;
     padding: 0;
+    transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.file-tree-expand-btn:hover {
+    background-color: #ffb84d;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.8);
 }
 
 .file-tree-expand-btn img {
@@ -223,7 +231,7 @@ body {
     display: flex;
     flex-direction: column;
     margin-left: 10px;
-    background-color: rgba(40, 40, 50, 0.85);
+    background-color: rgba(36, 36, 46, 1.0);
     border-radius: 8px;
     overflow: hidden;
 }
@@ -233,7 +241,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 35px;
-    background-color: rgba(35, 35, 45, 0.9);
+    background-color: rgba(31, 31, 41, 1.0);
     opacity: 1.0;
 }
 
@@ -257,19 +265,19 @@ body {
     max-width: 200px;
     height: 35px;
     padding: 0 10px;
-    background-color: rgba(50, 50, 60, 0.9);
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(50, 50, 60, 1.0);
+    border-right: 1px solid rgba(255, 255, 255, 0.55);
     cursor: pointer;
     user-select: none;
     transition: background-color 0.15s;
 }
 
 .tab-item:hover {
-    background-color: rgba(60, 60, 70, 0.9);
+    background-color: rgba(60, 60, 70, 1.0);
 }
 
 .tab-item.active {
-    background-color: rgba(74, 144, 217, 0.4);
+    background-color: rgba(0, 255, 0, 0.75);
     border-bottom: 2px solid #4a90d9;
 }
 
@@ -304,7 +312,7 @@ body {
 }
 
 .tab-close:hover {
-    background-color: rgba(255, 100, 100, 0.3);
+    background-color: rgba(255, 100, 100, 1.0);
 }
 
 .tab-close img {
@@ -313,18 +321,13 @@ body {
     object-fit: contain;
 }
 
-/* 标签页水平滚动条 */
+/* 标签页水平滚动条 - 已隐藏，改用滚轮滚动 */
 #tabs-scrollbar {
-    height: 8px;
-    background-color: rgba(0, 0, 0, 0.3);
-    cursor: pointer;
+    display: none;
 }
 
 #tabs-scrollbar-thumb {
-    height: 100%;
-    background-color: rgba(100, 100, 120, 0.6);
-    border-radius: 4px;
-    min-width: 30px;
+    display: none;
 }
 
 /* 代码编辑器容器 */
@@ -340,8 +343,9 @@ body {
 #line-numbers {
     width: 50px;
     min-width: 50px;
-    background-color: rgba(30, 30, 40, 1.0);
-    color: #ff9800;
+    background-color: rgba(220, 220, 220, 0.8);
+    color: #000000;
+    font-weight: bold;
     font-family: 'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
     font-size: 14px;
     line-height: 1.5;
@@ -349,7 +353,6 @@ body {
     text-align: right;
     user-select: none;
     overflow: hidden;
-    opacity: 1.0;
 }
 
 .line-number {
@@ -366,12 +369,63 @@ body {
     font-size: 14px;
     line-height: 1.5;
     padding: 10px;
-    overflow: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
-    overflow-wrap: break-word;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
     outline: none;
     cursor: text;
+    /* 防止 contenteditable 自动规范化空格 */
+    -webkit-user-modify: read-write-plaintext-only;
+    user-modify: read-write-plaintext-only;
+}
+
+/* 确保代码编辑器内的所有 div 都保留空格 */
+#code-editor div {
+    white-space: pre !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    /* 防止空格被折叠或合并 */
+    display: block;
+    min-height: 21px;
+}
+
+/* 显示原生滚动条但使用自定义样式 */
+#code-editor::-webkit-scrollbar {
+    width: 14px;
+}
+
+#code-editor::-webkit-scrollbar-track {
+    background-color: rgba(30, 30, 40, 1.0);
+}
+
+#code-editor::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 100, 120, 0.8);
+    border-radius: 7px;
+    min-height: 30px;
+}
+
+#code-editor::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(120, 120, 140, 1.0);
+}
+
+/* 代码编辑区域内的文本选择颜色 */
+#code-editor::selection {
+    background-color: rgba(0, 255, 0, 0.75);
+    color: #ffffff;
+}
+
+/* 全局文本选择颜色 */
+::selection {
+    background-color: rgba(0, 255, 0, 0.75);
+    color: #ffffff;
+}
+
+/* 代码编辑区域内的文本选择颜色 */
+#code-editor ::selection {
+    background-color: rgba(0, 255, 0, 0.75);
+    color: #ffffff;
 }
 
 /* 语法高亮样式 */
@@ -421,33 +475,34 @@ body {
     outline: none;
 }
 
-/* 垂直滚动条 */
+/* 垂直滚动条 - 恢复显示 */
 #vertical-scrollbar {
-    width: 12px;
-    background-color: rgba(0, 0, 0, 0.3);
+    width: 14px;
+    background-color: rgba(30, 30, 40, 1.0);
     cursor: pointer;
 }
 
 #vertical-scrollbar-thumb {
-    width: 100%;
-    background-color: rgba(100, 100, 120, 0.6);
-    border-radius: 6px;
+    width: 10px;
+    margin: 0 2px;
+    background-color: rgba(100, 100, 120, 0.8);
+    border-radius: 5px;
     min-height: 30px;
     cursor: pointer;
     transition: background-color 0.15s;
 }
 
 #vertical-scrollbar-thumb:hover {
-    background-color: rgba(120, 120, 140, 0.8);
+    background-color: rgba(120, 120, 140, 1.0);
 }
 
 /* 右键菜单 */
 #context-menu {
     position: fixed;
-    background-color: rgba(40, 40, 50, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(40, 40, 50, 1.0);
+    border: 1px solid rgba(255, 255, 255, 0.55);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 1.0);
     z-index: 2000;
     min-width: 150px;
 }
@@ -461,7 +516,7 @@ body {
 }
 
 #context-menu div:hover {
-    background-color: rgba(74, 144, 217, 0.3);
+    background-color: rgba(74, 144, 217, 1.0);
 }
 
 /* 新建对话框 */
@@ -471,7 +526,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -479,11 +534,11 @@ body {
 }
 
 #new-dialog-content {
-    background-color: rgba(40, 40, 50, 0.95);
+    background-color: rgba(40, 40, 50, 1.0);
     border-radius: 8px;
     padding: 20px;
     min-width: 300px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 1.0);
 }
 
 #new-dialog-content h3 {
@@ -495,9 +550,9 @@ body {
 #new-dialog-input {
     width: 100%;
     padding: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.65);
     border-radius: 4px;
-    background-color: rgba(30, 30, 40, 0.9);
+    background-color: rgba(30, 30, 40, 1.0);
     color: #e0e0e0;
     font-size: 14px;
     margin-bottom: 15px;
@@ -533,62 +588,23 @@ body {
 }
 
 #new-dialog-cancel {
-    background-color: rgba(100, 100, 100, 0.3);
+    background-color: rgba(100, 100, 100, 1.0);
     color: #e0e0e0;
 }
 
 #new-dialog-cancel:hover {
-    background-color: rgba(120, 120, 120, 0.4);
+    background-color: rgba(120, 120, 120, 1.0);
 }
 
 /* 了解页面样式 */
 .about-content {
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center;
     padding: 20px;
     color: #e0e0e0;
     gap: 30px;
     font-family: 'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
-}
-
-.about-info {
-    flex: 1;
-}
-
-.about-info h1 {
-    font-size: 28px;
-    margin-bottom: 15px;
-    color: #4a90d9;
-}
-
-.about-info h2 {
-    font-size: 18px;
-    margin: 20px 0 10px 0;
-    color: #6ab0ff;
-}
-
-.about-info p {
-    font-size: 14px;
-    line-height: 1.8;
-    margin-bottom: 10px;
-}
-
-.about-info ul {
-    margin-left: 20px;
-    font-size: 14px;
-    line-height: 1.8;
-}
-
-.about-info li {
-    margin-bottom: 5px;
-}
-
-.about-info kbd {
-    background-color: rgba(74, 144, 217, 0.3);
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-family: 'Consolas', 'Monaco', monospace;
 }
 
 .about-logo {
@@ -596,9 +612,43 @@ body {
 }
 
 .about-logo img {
-    width: 200px;
-    height: 200px;
+    width: 300px;
+    height: 300px;
     object-fit: contain;
+}
+
+.about-info {
+    flex: 1;
+    display: flex;
+    gap: 30px;
+}
+
+.about-shortcuts,
+.about-features {
+    flex: 1;
+}
+
+.about-info h2 {
+    font-size: 18px;
+    margin: 0 0 8px 0;
+    color: #6ab0ff;
+}
+
+.about-info ul {
+    margin-left: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.about-info li {
+    margin-bottom: 3px;
+}
+
+.about-info kbd {
+    background-color: rgba(74, 144, 217, 1.0);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', monospace;
 }
 
 /* 媒体文件显示样式 */
@@ -608,7 +658,7 @@ body {
     justify-content: center;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(0, 0, 0, 1.0);
 }
 
 .media-image {
@@ -629,7 +679,7 @@ body {
 .video-preview {
     max-width: 90%;
     max-height: 70%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 1.0);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -647,7 +697,7 @@ body {
     position: absolute;
     width: 80px;
     height: 80px;
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 1.0);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -702,7 +752,7 @@ body {
 /* 当显示媒体文件时，编辑器容器背景不透明 */
 #editor-container.media-mode {
     opacity: 1;
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: rgba(0, 0, 0, 1.0);
 }
 
 #editor-container.media-mode #line-numbers {

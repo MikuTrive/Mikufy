@@ -1,6 +1,5 @@
-#!/bin/bash
 #
-# Mikufy v2.1 - 一键清理脚本
+# Mikufy v2.2(stable) - 一键清理脚本
 # 清理编译构建产生的产物
 #
 
@@ -13,7 +12,7 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-VERSION="2.1"
+VERSION="2.2(stable)"
 OUTPUT_FILE="mikufy"
 
 # 打印函数
