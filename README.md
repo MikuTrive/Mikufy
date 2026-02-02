@@ -63,8 +63,7 @@ Mikufy/
 ├── build.sh               # 一键编译脚本
 ├── clean.sh               # 一键清理脚本
 ├── Explain.txt            # 依赖列表文件
-├── README.md              # 本文件
-└── desktop.sh             # 桌面程序安装脚本
+└── README.md              # 本文件
 ```
 
 
@@ -249,13 +248,6 @@ sudo dnf install gcc-c++ pkgconfig webkit2gtk4.1-devel gtk3-devel glib2-devel li
 ```bash
 # 使用一键清理脚本
 ./clean.sh
-```
-
-### 桌面程序安装脚本
-
-```bash
-# 桌面程序安装脚本
-./desktop.sh
 ```
 
 
