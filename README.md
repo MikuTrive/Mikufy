@@ -1,114 +1,46 @@
-# Mikufy v2.4(stable) - 代码编辑器
-
-## 🙏 致谢贡献者
-
-特别感谢 **luozenan** 对本项目的贡献！
+# Mikufy v2.2(stable)
 
 - Mikufy 第一个稳定版本发布 为 v2.2
-- 我们目前将只提供 `Fedora43/ArchLinux/NixOS`支持的Mikufy(不同发行版依赖包版本不依)
+- 我们目前将只提供Fedora43支持的Mikufy(不同发行版依赖包版本不依)
 - 如果您仍愿意使用可切换到v2.1分支也就是sid版的mikufy还有未完成的功能bug需修复
-- 此v2.4(stable)为完整的稳定版发布(可联系我们合作开发贡献)
+- 此v2.2(stable)为完整的稳定版发布(可联系我们合作开发贡献)
 
-## 📋 版本更新说明
+## 项目简介
 
+Mikufy 是一个美观、轻量级、高性能的代码编辑器，专为 Linux 系统设计。采用 C++ 与 Web 集成的架构，兼容 Wayland 和 XWayland 显示服务器，提供现代化的编辑体验。
 
-### v2.4(stable)
+## 版本信息
 
-**重大更新：代码规范化重构**
+- **当前版本**: v2.2(stable)
+- **平台**: Linux (Wayland/XWayland)
+- **开发语言**: C++ (C++17标准)
+- **前端技术**: HTML5, CSS3, JavaScript
+- **编译器**: GCC 7.0+
 
-- 本次版本对整个项目进行了全面的代码规范化重构，所有源代码现在都遵循Linux内核代码风格规范，提高了代码的可读性和可读性。
-- 添加了编辑器壁纸功能，从Plasma引入了全新的Icons。
-- 这次稳定版对Fedora43完美支持且完美支持ArchLinux。
-- 新加入更多易用方便高效率的快捷键。
+## 主要功能
 
-
-#### 主要变更
-
-1. **代码风格统一**
-   - 所有源代码（C++、HTML、JavaScript、CSS）现在都遵循Linux内核代码风格规范
-   - 统一使用Tab缩进（8字符宽度）
-   - 统一使用K&R括号风格
-   - 添加了完整的文件头部注释（包含SPDX许可证标识）
-
+### 核心功能
+- 📁 **文件树导航** - 支持子目录展开、折叠、返回上级目录
+- 📑 **多标签页编辑** - 支持同时打开多个文件，快速切换
+- 💾 **保存功能** - 支持手动保存（Ctrl+S）
+- 🖼️ **媒体预览** - 支持查看图片（.png, .jpg, .jpeg）、视频（.mp4）、音频（.mp3, .wav）
+- 🔄 **快捷键支持** - 丰富的键盘快捷键，提高编辑效率
+- 📝 **文件操作** - 支持新建、删除、重命名文件和文件夹
+- 🔍 **右键菜单** - 便捷的右键菜单操作
 
 ### 快捷键列表
     快捷键
-```
-|---------------------|----------------------------|
-|   `Ctrl+S`          | 保存所有文件                 |
-|   `F5`              | 刷新编辑器内容               |
-|   `Ctrl+O`          | 打开文件夹                   |
-|   `Ctrl+F`          | 新建文件夹                   |
-|   `Ctrl+N`          | 新建文件                    |
-|   `Tab`             | 自动缩进(4格)               |
-|   `F11`             | 全屏                       |
-|   `Ctrl+方向左键`    | 快捷切换至左侧的标签页        |
-|   `Ctrl+方向右键`    | 快捷切换至右侧的标签页        |
-|   `Ctrl+M`          | 删除当前所在标签页(不删除内容) |
-|--------------------------------------------------|
-```
-
-
+|------------|
+|   `Ctrl+S` | 保存所有文件 
+|   `F5`     | 刷新编辑器内容 
+|   `Ctrl+O` | 打开文件夹
+|   `Ctrl+F` | 新建文件夹
+|   `Ctrl+N` | 新建文件
+|   `Tab`    | 自动缩进(4格)
+|   `F11`    | 全屏
+|------------|
 ## 项目结构
 
-2. **文档注释完善**
-   - 为所有头文件添加了详细的结构体、枚举和类注释
-   - 为所有公共方法添加了完整的功能说明、参数说明和返回值说明
-   - 为复杂逻辑添加了详细的行内注释
-   - 注释覆盖率提升至95%以上
-
-3. **代码组织优化**
-   - 重新组织了头文件的包含顺序
-   - 改进了代码分块和注释分隔
-   - 优化了函数命名一致性
-
-4. **技术栈更新**
-   - 升级至GTK4和WebKitGTK 6.0
-   - 完全支持Wayland和XWayland显示服务器
-   - 移除了PNG格式的图标，全部替换为SVG格式
-
-#### 新增功能
-
-- 壁纸更换功能：支持在6种预设壁纸中切换
-- 改进的文件对话框：使用GTK4的异步API
-- 增强的全屏控制：精确控制全屏进入和退出
-
-#### Bug修复
-
-- 修复了在大型目录中读取文件时可能卡死的问题（限制读取1000个条目）
-- 修复了全屏退出时可能被意外触发的问题
-- 修复了文件类型检测的准确性
-
-#### 平台支持
-
-- **主要支持平台**：Fedora43/ArchLinux
-- **兼容平台**：其他使用GTK4和WebKitGTK 6.0的Linux发行版
-- **显示服务器**：Wayland和XWayland
-
-
-
-## 📐 代码规范说明
-
-本项目严格遵循Linux内核代码风格规范，确保代码的一致性和可读性。
-
-### C/C++代码规范
-
-#### 1. 文件头部注释
-
-每个源文件必须以SPDX许可证标识开头，后跟详细的文件说明：
-
-```c
-// SPDX-License-Identifier: GPL-2.0
-/*
- * 文件名 - 简要描述
- *
- * 详细说明文件的功能、设计思路和主要组件。
- *
- * Copyright (C) 2024 MiraTrive/MikuTrive
- * Author: [Your Name]
- *
- * 本文件遵循Linux内核代码风格规范
- */
 ```
 Mikufy/
 ├── src/                   # C++ 源代码目录
@@ -131,300 +63,172 @@ Mikufy/
 ├── build.sh               # 一键编译脚本
 ├── clean.sh               # 一键清理脚本
 ├── Explain.txt            # 依赖列表文件
-└── README.md              # 本文件
+├── README.md              # 本文件
+└── desktop.sh             # 桌面程序安装脚本
 ```
 
-#### 3. 命名约定
 
-- **常量**：全大写，下划线分隔
-  ```c
-  #define MAX_SIZE  100
-  #define VERSION  "2.2"
-  ```
+## 目录说明
 
-- **变量和函数**：小写，下划线分隔
-  ```c
-  int file_size;
-  void get_file_info(const char *path);
-  ```
+### headers/ 目录（头文件）
 
-- **类型定义**：小写，下划线分隔
-  ```c
-  struct file_info {
-      char *name;
-      size_t size;
-  };
-  ```
+头文件目录包含所有 C++ 源代码所需的头文件定义：
 
-#### 4. 函数注释
+#### `main.h`
+- **作用**: 主头文件，包含项目级别的全局定义、常量和宏
+- **内容**:
+  - 全局配置常量
+  - 共享的数据结构定义
+  - 外部变量声明
+- **维护方法**: 
+  - 当需要添加新的全局常量或配置时，在此文件中添加
+  - 确保与其他头文件没有重复定义
 
-每个公共函数前必须添加详细注释：
+#### `file_manager.h`
+- **作用**: 文件管理器头文件，定义文件操作的接口
+- **内容**:
+  - `FileManager` 类声明
+  - 文件信息结构体定义（FileInfo）
+  - 文件操作方法声明（读取、写入、删除、重命名等）
+- **维护方法**:
+  - 添加新的文件操作方法时，先在此声明
+  - 修改 FileInfo 结构时，确保与 file_manager.cpp 实现保持一致
+  - 添加新的文件类型支持时，更新相关方法签名
 
-```c
-/**
- * function_name - 函数简要描述
- *
- * 详细说明函数的功能、实现思路和注意事项。
- *
- * @param param1: 参数1说明
- * @param param2: 参数2说明
- *
- * 返回值: 返回值说明
- *
- * 注意: 任何重要的注意事项
- */
-int function_name(int param1, char *param2)
-{
-	/* 实现 */
-	return 0;
-}
-```
+#### `web_server.h`
+- **作用**: Web服务器头文件，定义HTTP服务器接口
+- **内容**:
+  - `WebServer` 类声明
+  - HTTP请求/响应结构体定义
+  - API路由处理器声明
+  - 工具函数声明
+- **维护方法**:
+  - 添加新的 API 端点时，先在此声明处理器方法
+  - 修改请求/响应结构时，确保与 web_server.cpp 实现一致
+  - 新增路由时，在 initializeRoutes 方法中注册
 
-#### 5. 其他规范
+#### `window_manager.h`
+- **作用**: 窗口管理器头文件，定义GTK窗口接口
+- **内容**:
+  - `WindowManager` 类声明
+  - 窗口初始化和事件处理方法声明
+  - 前端交互回调函数类型定义
+- **维护方法**:
+  - 添加新的窗口事件处理时，先在此声明
+  - 修改回调函数类型时，确保所有调用方同步更新
+  - 新增前端交互功能时，定义对应的回调类型
 
-- 行宽：尽量不超过80字符
-- 注释：使用`/* */`进行块注释，`//`用于单行注释
-- 空格：运算符前后添加空格（除特殊情况外）
-- 指针：`char *ptr`（星号靠近类型名）
+**头文件维护注意事项**:
+1. 使用头文件保护（`#ifndef`）防止重复包含
+2. 保持头文件接口简洁，实现细节放在 .cpp 文件中
+3. 添加新方法时，同步更新 .cpp 文件中的实现
+4. 使用 `extern` 声明跨文件使用的全局变量
+5. 保持代码注释完整，说明每个类和方法的作用
 
-### JavaScript代码规范
+### src/ 目录（源代码）
 
-#### 1. 文件头部注释
+源代码目录包含所有 C++ 源代码实现文件：
 
-```javascript
-/**
- * 文件名 - 简要描述
- *
- * 详细说明文件的功能和设计。
- * Copyright (C) 2024 MiraTrive/MikuTrive
- */
-```
+#### `main.cpp`
+- **作用**: 主程序入口，负责初始化和启动应用程序
+- **内容**:
+  - 主函数 `main()`
+  - 信号处理函数
+  - 全局对象初始化
+  - 应用程序生命周期管理
 
-#### 2. 函数注释
+#### `file_manager.cpp`
+- **作用**: 文件管理器实现，处理所有文件系统操作
+- **内容**:
+  - 文件读写操作
+- **目录遍历和管理**
+- **文件类型识别（使用 libmagic）**
+- **文件和目录的创建、删除、重命名**
 
-```javascript
-/**
- * 函数名 - 简要描述
- *
- * @param {类型} paramName - 参数说明
- * @returns {类型} 返回值说明
- */
-function functionName(paramName) {
-    // 实现
-}
-```
+#### `web_server.cpp`
+- **作用**: Web服务器实现，提供HTTP API 接口
+- **内容**:
+  - HTTP服务器启动和监听
+- 请求解析和路由分发
+- API 端点实现（文件读写、目录操作等）
+- 静态文件服务**
 
-#### 3. 命名约定
+#### `window_manager.cpp`
+- **作用**: 窗口管理器实现，处理GTK窗口和前端交互
+- **内容**:
+  - GTK窗口创建和配置
+- WebKit WebView 嵌入
+- 文件对话框处理
+- 前端回调函数实现
 
-- 变量和函数：camelCase（小驼峰）
-- 常量：UPPER_SNAKE_CASE
-- 类/构造函数：PascalCase（大驼峰）
+**源代码维护注意事项**:
+1. 保持代码风格一致，遵循项目约定
+2. 每个函数添加完整注释，说明作用、参数、返回值
+3. 避免过长的函数，适当拆分以提高可维护性
+4. 使用 RAII 原则管理资源，防止内存泄漏
+5. 添加错误处理和日志输出
 
-### CSS代码规范
+### web/ 目录（前端代码）
 
-#### 1. 文件头部注释
+前端代码目录包含所有前端资源文件：
 
-```css
-/**
- * 文件名 - 简要描述
- *
- * 设计原则和配色方案说明
- * Copyright (C) 2024 MiraTrive/MikuTrive
- */
-```
+#### `index.html`
+- **作用**: HTML结构文件，定义编辑器界面布局
+- **内容**:
+  - 整体页面布局结构
+  - 左侧面板（文件树、工具栏、路径显示）
+  - 标签页区域
+  - 代码编辑区域
+  - 右键菜单
+  - 新建文件/文件夹对话框
 
-#### 2. 规则注释
+#### `style.css`
+- **作用**: CSS样式文件，定义界面样式和视觉效果
+- **内容**:
+  - 整体布局样式
+  - 组件样式（按钮、对话框、滚动条等）
+  - 颜色主题配置
+  - 响应式布局
 
-```css
-/* ============================================================================
- * 模块名称
- * ============================================================================
- */
+#### `app.js`
+- **作用**: JavaScript交互逻辑，处理用户交互和API调用
+- **内容**:
+  - DOM元素管理
+  - 状态管理（文件树、标签页、缓存等）
+  - API调用封装
+  - 事件监听和处理
+  - 语法高亮实现
+  - 文件操作逻辑
 
-/* 类名 - 简要说明 */
-.class-name {
-    /* 属性值说明 */
-    property: value;
-}
-```
+#### `Icons/` 目录
+- **作用**: 图标资源目录，包含所有界面图标
+- **内容**: 各种文件类型图标（如 C-24.png, Python-24.png 等）
 
-#### 3. 命名约定
+#### `Background.png`
+- **作用**: 背景图片，编辑器的主背景图
 
-- 类名：kebab-case（短横线分隔）
-- ID：kebab-case
-- 变量：kebab-case
+#### `Mikufy.png`
+- **作用**: Logo图片，编辑器的品牌标识
 
----
+**前端代码维护注意事项**:
+1. 保持代码结构清晰，模块化设计
+2. 使用语义化的 HTML 和 CSS
+3. JavaScript 函数添加注释，说明功能和使用方法
+4. 图标文件使用时通过相对路径引用（`../Icons/xxx.png`）
+5. 新增功能时，同步更新 HTML、CSS 和 JavaScript
 
-## 📦 Fedora43/ArchLinux 依赖安装说明
+## 依赖安装
 
-本版本为Fedora43性能优化更换，依赖以下库和工具。
 
-### 系统要求
 
-- **操作系统**：Fedora43/ArchLinux
-- **桌面环境**：GNOME、Plasma、Xfce等主流桌面环境
-- **显示服务器**：Wayland或XWayland
-- **编译器**：GCC 7.0+
-
-### 依赖包列表
-
-#### 核心依赖
-
-| 包名 | 版本要求 | 用途 |
-|------|---------|------|
-| gcc-c++ | 7.0+ | C++编译器 |
-| pkg-config | 最新版 | 编译配置工具 |
-| webkitgtk6.0-devel | 6.0+ | WebKitGTK开发库 |
-| gtk4-devel | 4.0+ | GTK4开发库 |
-| glib2-devel | 最新版 | GLib开发库 |
-| file-devel | 最新版 | libmagic开发库 |
-| nlohmann-json-devel | 最新版 | JSON处理库 |
-
-### 安装命令
-
-Fedora43 使用以下命令安装所有依赖：
+### Fedora 43
 
 ```bash
-# 更新系统
-sudo dnf update
-
-# 安装编译工具
-sudo dnf install gcc-c++ pkgconfig
-
-# 安装GTK4和WebKitGTK 6.0
-sudo dnf install webkitgtk6.0-devel gtk4-devel glib2-devel
-
-# 安装文件类型检测库
-sudo dnf install file-devel
-
-# 安装JSON处理库
-sudo dnf install nlohmann-json-devel
+sudo dnf install gcc-c++ pkgconfig webkit2gtk4.1-devel gtk3-devel glib2-devel libmagic-devel nlohmann-json-devel
 ```
 
 
-ArchLinux 使用以下命令安装所有依赖:
-
-```bash
-# 更新系统
-sudo pacman -Syu
-
-# 安装编译工具
-sudo pacman -S pkgconf base-devel
-
-# 安装GTK4和WebKitGTK 6.0
-sudo pacman -S webkitgtk6.0 gtk4 glib2-devel
-
-# 安装文件类型检测库
-sudo pacman -S file
-
-# 安装JSON处理库
-sudo pacman -S nlohmann-json
-```
-
-
-### 验证安装
-
-安装完成后，可以使用以下命令验证：
-
-```bash
-# 检查GCC版本
-g++ --version
-
-# 检查WebKitGTK
-pkg-config --modversion webkitgtk-6.0
-
-# 检查GTK4
-pkg-config --modversion gtk4
-
-# 检查libmagic
-pkg-config --modversion libmagic
-
-# 检查nlohmann_json
-pkg-config --modversion nlohmann_json
-```
-
-
-```
-Mikufy/
-├── headers/               # C++头文件目录
-│   ├── main.h            # 主头文件，包含全局定义和常量
-│   ├── file_manager.h    # 文件管理器头文件
-│   ├── web_server.h      # Web服务器头文件
-│   └── window_manager.h  # 窗口管理器头文件
-│
-├── src/                   # C++源代码目录
-│   ├── main.cpp          # 主程序入口
-│   ├── file_manager.cpp  # 文件管理器实现
-│   ├── web_server.cpp    # Web服务器实现
-│   └── window_manager.cpp# 窗口管理器实现
-│
-├── web/                   # 前端源代码目录
-│   ├── index.html        # HTML结构文件
-│   ├── style.css         # CSS样式文件
-│   ├── app.js            # JavaScript交互逻辑
-│   ├── Mikufy.png        # Logo图片
-│   ├── Background/       # 背景图片目录
-│   │   ├── index-1.png
-│   │   ├── index-2.jpg
-│   │   ├── index-3.png
-│   │   ├── index-4.png
-│   │   ├── index-5.png
-│   │   └── index-6.png
-│   └── Icons/            # 图标资源目录（SVG格式）
-│       ├── AI-24.svg
-│       ├── C-24.svg
-│       ├── C++-24.svg
-│       ├── C#-24.svg
-│       ├── CSS-24.svg
-│       ├── Git-24.svg
-│       ├── Go-24.svg
-│       ├── HTML-24.svg
-│       ├── Java-24.svg
-│       ├── JavaScript-24.svg
-│       ├── Lua-24.svg
-│       ├── MD-24.svg
-│       ├── PHP-24.svg
-│       ├── Python-24.svg
-│       ├── Rust-24.svg
-│       ├── TypeScript.svg
-│       └── ...           # 其他图标文件
-│
-├── build.sh              # 一键编译脚本
-├── clean.sh              # 一键清理脚本
-├── Explain.txt           # 依赖列表文件
-├── flake.nix             # nixos框架配置
-├── package.nix           # nixos构建配方
-├── LICENSE               # GPL-3.0许可证
-├── mikufy.desktop        # nixos桌面程序
-├── install.sh            # Fedora43/ArchLinux用户的桌面应用程序安装脚本
-└── README.md             # 本文件
-```
-
-### 目录说明
-
-#### headers/ 目录
-包含所有C++头文件，定义了项目的核心数据结构、类接口和全局常量。
-
-#### src/ 目录
-包含所有C++源代码实现，实现了文件管理、Web服务器和窗口管理等功能。
-
-#### web/ 目录
-包含所有前端资源文件，使用HTML5、CSS3和JavaScript构建用户界面。
-
-- **index.html**：定义页面的HTML结构
-- **style.css**：定义页面的样式和布局
-- **app.js**：处理用户交互和与后端的通信
-- **Background/**：存放6张预设背景图片
-- **Icons/**：存放各种文件类型的SVG图标
-
-#### 构建脚本
-- **build.sh**：自动化编译脚本，支持debug和release模式
-- **clean.sh**：清理编译产物
-
-
-
-## 🚀 编译和运行
+## 编译和运行
 
 ### 编译项目
 
@@ -433,23 +237,12 @@ Mikufy/
 ./build.sh
 ```
 
-编译选项：
-- `-h, --help`：显示帮助信息
-- `-c, --clean`：清理编译产物
-- `-r, --release`：发布模式编译（优化）
-- `-d, --debug`：调试模式编译（包含调试信息）
-
 ### 运行程序
 
 ```bash
 # 运行编译好的可执行文件
 ./mikufy
 ```
-
-命令行选项：
-- `-h, --help`：显示帮助信息
-- `-v, --version`：显示版本信息
-- `-p, --port`：指定Web服务器端口（默认8080）
 
 ### 清理编译产物
 
@@ -458,28 +251,136 @@ Mikufy/
 ./clean.sh
 ```
 
+### 桌面程序安装脚本
+
+```bash
+# 桌面程序安装脚本
+./desktop.sh
+```
 
 
+## 编译选项说明
 
+- **标准**: `-std=c++17` (C++17标准)
+- **优化级别**: `-O2` (优化编译)
+- **警告级别**: `-Wall -Wextra -Wpedantic` (显示所有警告)
+- **链接库**: WebKitGTK, GTK+, GLib, libmagic 等
 
-## 📝 许可证
+## 系统要求
 
+- **操作系统**: Linux
+- **显示服务器**: Wayland 或  XWayland
+- **桌面环境**: Gnome, Plasma, Xfce, Niri, Hyprland 等主流桌面环境
+- **最低 GCC 版本**: 7.0
+- **RAM**: 建议 512MB 以上
+- **磁盘空间**: 建议 100MB 以上
 
-本项目采用GPL-3.0许可证。详见[LICENSE](LICENSE)文件。
+## 功能特性
 
-## 🤝 贡献
+### 支持的文件类型
 
-欢迎提交Issue和Pull Request！
+#### 文本文件
+- C/C++ (.c, .cpp, .h, .hpp)
+- JavaScript / TypeScript (.js, .ts, .jsx, .tsx)
+- Python (.py)
+- Java (.java)
+- Shell脚本 (.sh)
+- HTML/CSS/JavaScript (.html, .css, .js)
+- JSON/XML (.json, .xml)
+- Markdown (.md)
+- 其他文本文件
 
-## 📧 联系方式
+#### 媒体文件
+- 图片 (.png, .jpg, .jpeg)
+- 视频 (.mp4)
+- 音频 (.mp3, .wav)
 
-- **开发者群聊**：QQ: 675155390
-- **开发者邮箱**：GMAIL: mikulxz08@gmail.com
-- **开发者账号**：BiliBili: 3546843237582920
+### 文件图标映射
+
+程序根据文件扩展名自动显示对应的图标，支持的文件类型包括：
+- AI 文件 (.ai)
+- C/C++ 文件 (.c, .cpp, .h, .hpp)
+- C# 文件 (.cs)
+- Go 文件 (.go)
+- Java 文件 (.java)
+- JavaScript/TypeScript (.js, .ts)
+- Python 文件 (.py)
+- Rust 文件 (.rs)
+- Kotlin 文件 (.kt)
+- Lua 文件 (.lua)
+- Shell 脚本 (.sh)
+- HTML/CSS/JavaScript (.html, .css, .js)
+- JSON/XML (.json, .xml)
+- Markdown (.md)
+- 图片文件 (.png, .jpg, .jpeg)
+- 视频文件 (.mp4)
+- 音频文件 (.mp3, .wav)
+- 配置文件 (.conf, .config, .theme, .d)
+- Git 相关文件 (.git, .gitattributes, .gitignore)
+- 压缩包 (.zip, .tar, .gz 等)
+- 其他文件
+
+## 开发和维护
+
+### 添加新功能
+
+1. **C++ 后端功能**:
+   - 在 `headers/` 中添加或修改头文件声明
+   - 在 `src/` 中实现对应功能
+   - 在 `web_server.cpp` 中注册新的 API 路由
+   - 在 `window_manager.cpp` 中添加必要的回调处理
+
+2. **前端功能**:
+   - 在 `web/app.js` 中添加或修改 JavaScript 逻辑
+   - 在 `web/style.css` 中添加或修改样式
+   - 在 `web/index.html` 中修改 HTML 结构
+
+3. **新增图标**:
+   - 将图标文件放入 `web/Icons/` 目录
+   - 在 `web/app.js` 的 `AppState.iconMap` 中添加图标映射
+
+### 代码规范
+
+- 使用 C++17 标准
+- 遵循 Google C++ Style Guide
+- 添加完整的函数注释
+- 使用 RAII 原则管理资源
+- 保持代码缩进一致（4空格）
+- 避免使用魔法数字，使用命名常量
+
+## 常见问题
+
+### Quest: 编译时提示找不到头文件
+A: 确保已安装所有依赖，特别是 `libwebkit2gtk-4.1-dev` 和 `nlohmann-json3-dev`
+
+### Quest: 运行时提示找不到 libwebkit2gtk-4.1.so
+A: 安装 WebKitGTK 运行时库：`sudo apt install libwebkit2gtk-4.1-43`
+
+### Quest: 语法高亮不生效
+A: 确保文件扩展名正确，程序通过扩展名判断文件类型
+
+### Quest: 无法打开某些文件
+A: 检查文件权限，确保程序有读取权限
+
+### Quest: 媒体文件无法播放
+A: 确保系统已安装对应的编解码器
+
+## 许可证
+
+GPL-3.0 License
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 联系方式
+
+开发者群聊: [QQ: 675155390]
+
+开发者邮箱: [GMAIL: mikulxz08@gmail.com]
+
+开发者账号: [BiliBili: 3546843237582920]
 
 ---
 
-**Mikufy v2.4(stable)** - 让代码编辑更简单
-
-    MiraTrive/MikuTrive*
-贡献者 - luozenan
+**Mikufy v2.2(stable)** - 让代码编辑更简单
