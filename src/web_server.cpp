@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Mikufy v2.3(stable) - Web服务器实现
+ * Mikufy v2.4(stable) - Web服务器实现
  *
  * 本文件实现了HTTP服务器功能，负责与前端进行通信。
  * 主要功能包括：

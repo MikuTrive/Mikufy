@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Mikufy v2.3(stable) - 文件管理器实现
+ * Mikufy v2.4(stable) - 文件管理器实现
  *
  * 本文件实现了FileManager类的所有方法，提供完整的文件系统操作功能。
  * FileManager封装了底层的文件操作API，提供线程安全的接口，并使用
@@ -16,7 +16,7 @@
  * - 路径处理和标准化
  * - MIME类型检测
  *
- * 2024 MiraTrive/MikuTrive
+ * MiraTrive/MikuTrive
  * Author: [Your Name]
  *
  * 本文件遵循Linux内核代码风格规范

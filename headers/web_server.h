@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Mikufy v2.3(stable) - Web服务器头文件
+ * Mikufy v2.4(stable) - Web服务器头文件
  *
  * 本文件定义了WebServer类的接口，该类负责提供HTTP服务和
  * 处理前端请求。WebServer实现了完整的HTTP/1.1服务器功能，
