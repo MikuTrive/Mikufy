@@ -1,23 +1,13 @@
 # Mikufy v2.4(stable) - 代码编辑器
 
-特别感谢 @luozenan 对项目提供的核心代码贡献，在Linux平台的打包逻辑、桌面应用程序适配与兼容性优化上提交了关键支撑！
-现在Mikufy v2.4 也能支撑NixOS用户啦！
+## 🙏 致谢贡献者
 
-<<<<<<< Updated upstream
+特别感谢 **luozenan** 对本项目的贡献！
 
-- Mikufy 第一个稳定版本发布 为 v2.2
-- 我们目前将只提供Fedora43/ArchLinux支持的Mikufy(不同发行版依赖包版本不依)
-- 如果您仍愿意使用可切换到v2.1分支也就是sid版的mikufy还有未完成的功能bug需修复
-- 此v2.3(stable)为完整的稳定版发布(可联系我们合作开发贡献)
-
-## 📋 版本更新说明
-
-=======
 - Mikufy 第一个稳定版本发布 为 v2.2
 - 我们目前将只提供 `Fedora43/ArchLinux/NixOS`支持的Mikufy(不同发行版依赖包版本不依)
 - 如果您仍愿意使用可切换到v2.1分支也就是sid版的mikufy还有未完成的功能bug需修复
 - 此v2.4(stable)为完整的稳定版发布(可联系我们合作开发贡献)
->>>>>>> Stashed changes
 
 ## 📋 版本更新说明
 
