@@ -1,5 +1,5 @@
 #
-# Mikufy v2.3(stable) - 一键清理脚本
+# Mikufy v2.4(stable) - 一键清理脚本
 # 清理编译构建产生的产物
 #
 
