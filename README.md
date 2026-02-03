@@ -1,5 +1,5 @@
 # Mikufy v2.2(stable)
-
+ # 在此特别感谢贡献者luozenan的支持
 - Mikufy 第一个稳定版本发布 为 v2.2
 - 我们目前将只提供Fedora43支持的Mikufy(不同发行版依赖包版本不依)
 - 如果您仍愿意使用可切换到v2.1分支也就是sid版的mikufy还有未完成的功能bug需修复
