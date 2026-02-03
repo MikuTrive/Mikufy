@@ -1,5 +1,5 @@
 #
-# Mikufy v2.3(stable) - 一键编译脚本
+# Mikufy v2.4(stable) - 一键编译脚本
 # 编译整个项目为单个可执行文件
 # 支持 Fedora 和 ArchLinux
 #
@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-VERSION="2.3(stable)"
+VERSION="2.4(stable)"
 OUTPUT_FILE="mikufy"
 
 # 编译器设置
