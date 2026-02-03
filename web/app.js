@@ -1,5 +1,5 @@
 /**
- * Mikufy v2.3(stable) - 代码编辑器前端JavaScript
+ * Mikufy v2.4(stable) - 代码编辑器前端JavaScript
  *
  * 本文件处理所有前端交互逻辑，通过C++后端API与系统交互
  *
@@ -18,7 +18,7 @@
  *   - 函数模块：按功能划分的函数集合
  *
  * 作者：MikuTrive
- * 版本：v2.3(stable)
+ * 版本：v2.4(stable)
  * 许可证：详见 LICENSE 文件
  */
 
@@ -2267,7 +2267,7 @@ function init() {
     AppState.activeTab = 0;
     renderTabs();
     
-    console.log('Mikufy v2.3(stable) 初始化完成');
+    console.log('Mikufy v2.4(stable) 初始化完成');
 }
 
 /**

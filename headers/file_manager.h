@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Mikufy v2.3(stable) - 文件管理器头文件
+ * Mikufy v2.4(stable) - 文件管理器头文件
  *
  * 本文件定义了FileManager类的接口，该类负责处理所有与文件系统
  * 相关的操作。FileManager提供了一组统一的API来执行文件的读取、

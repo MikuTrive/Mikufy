@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Mikufy v2.3(stable) - 窗口管理器头文件
+ * Mikufy v2.4(stable) - 窗口管理器头文件
  *
  * 本文件定义了WindowManager类的接口，该类负责管理GTK窗口和
  * WebKitWebView组件。WindowManager创建并维护应用程序的主窗口，

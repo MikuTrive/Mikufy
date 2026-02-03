@@ -1,0 +1,14 @@
+# # Mikufy v2.4(stable)
+# 作者 luozenan
+
+[Desktop Entry]
+Type=Application
+Name=mikufy
+Comment=Mikufy v2.4
+Exec=mikufy
+Icon=mikufy
+Terminal=false
+Categories=Network;WebDevelopment;Utility;GTK;
+StartupNotify=false
+Keywords=web;server;gtk;mikufy;
+NoDisplay=false
