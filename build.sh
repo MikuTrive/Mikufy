@@ -1,6 +1,7 @@
 #
-# Mikufy v2.2(stable) - 一键编译脚本
+# Mikufy v2.4(stable) - 一键编译脚本
 # 编译整个项目为单个可执行文件
+# 支持 Fedora 和 ArchLinux
 #
 
 # 颜色定义
@@ -12,14 +13,14 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-VERSION="2.2(stable)"
+VERSION="2.4(stable)"
 OUTPUT_FILE="mikufy"
 
 # 编译器设置
 CXX="g++"
 CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Wpedantic"
 
-# 链接库 (Fedora 43 使用 webkitgtk-6.0 和 gtk4)
+# 链接库 (Fedora 和 ArchLinux 使用 webkitgtk-6.0 和 gtk4)
 LIBS="-lwebkitgtk-6.0 -lgtk-4 -lgobject-2.0 -lglib-2.0 -lmagic -lnlohmann_json"
 
 # 包含路径
@@ -54,6 +55,30 @@ print_header() {
     echo ""
 }
 
+# 检测发行版
+detect_distro() {
+    print_info "检测系统发行版..."
+    
+    DISTRO_NAME=$(cat /etc/os-release | grep "^NAME=" | cut -d '"' -f 2)
+    print_info "检测到发行版: ${DISTRO_NAME}"
+    
+    if [[ "$DISTRO_NAME" == *"Arch"* ]] || [[ "$DISTRO_NAME" == *"arch"* ]]; then
+        DISTRO="arch"
+        PKG_MANAGER="pacman"
+        PKG_INSTALL="sudo pacman -S"
+        print_success "检测到 ArchLinux"
+    elif [[ "$DISTRO_NAME" == *"Fedora"* ]] || [[ "$DISTRO_NAME" == *"fedora"* ]]; then
+        DISTRO="fedora"
+        PKG_MANAGER="dnf"
+        PKG_INSTALL="sudo dnf install"
+        print_success "检测到 Fedora"
+    else
+        print_error "不支持的发行版: ${DISTRO_NAME}"
+        print_info "目前仅支持 Fedora 和 ArchLinux"
+        exit 1
+    fi
+}
+
 # 检查依赖
 check_dependencies() {
     print_info "检查编译依赖..."
@@ -61,35 +86,55 @@ check_dependencies() {
     # 检查g++
     if ! command -v g++ &> /dev/null; then
         print_error "未找到 g++ 编译器"
-        print_info "请安装: sudo dnf install gcc-c++"
+        if [ "$DISTRO" = "fedora" ]; then
+            print_info "请安装: ${PKG_INSTALL} gcc-c++"
+        else
+            print_info "请安装: ${PKG_INSTALL} base-devel"
+        fi
         exit 1
     fi
 
     # 检查pkg-config
     if ! command -v pkg-config &> /dev/null; then
         print_error "未找到 pkg-config"
-        print_info "请安装: sudo dnf install pkg-config"
+        if [ "$DISTRO" = "fedora" ]; then
+            print_info "请安装: ${PKG_INSTALL} pkg-config"
+        else
+            print_info "请安装: ${PKG_INSTALL} pkgconf"
+        fi
         exit 1
     fi
 
-    # 检查webkitgtk-6.0 (Fedora 43)
+    # 检查webkitgtk-6.0
     if ! pkg-config --exists webkitgtk-6.0; then
         print_error "未找到 webkitgtk-6.0"
-        print_info "请安装: sudo dnf install webkitgtk6.0-devel"
+        if [ "$DISTRO" = "fedora" ]; then
+            print_info "请安装: ${PKG_INSTALL} webkitgtk6.0-devel"
+        else
+            print_info "请安装: ${PKG_INSTALL} webkitgtk6.0"
+        fi
         exit 1
     fi
 
     # 检查gtk-4
     if ! pkg-config --exists gtk4; then
         print_error "未找到 gtk-4"
-        print_info "请安装: sudo dnf install gtk4-devel"
+        if [ "$DISTRO" = "fedora" ]; then
+            print_info "请安装: ${PKG_INSTALL} gtk4-devel"
+        else
+            print_info "请安装: ${PKG_INSTALL} gtk4"
+        fi
         exit 1
     fi
 
     # 检查libmagic
     if ! pkg-config --exists libmagic; then
         print_error "未找到 libmagic"
-        print_info "请安装: sudo dnf install file-devel"
+        if [ "$DISTRO" = "fedora" ]; then
+            print_info "请安装: ${PKG_INSTALL} file-devel"
+        else
+            print_info "请安装: ${PKG_INSTALL} file"
+        fi
         exit 1
     fi
 
@@ -98,7 +143,11 @@ check_dependencies() {
         print_warning "未找到 nlohmann_json，尝试使用系统头文件..."
         if [ ! -f "/usr/include/nlohmann/json.hpp" ]; then
             print_error "未找到 nlohmann/json.hpp"
-            print_info "请安装: sudo dnf install json-devel"
+            if [ "$DISTRO" = "fedora" ]; then
+                print_info "请安装: ${PKG_INSTALL} json-devel"
+            else
+                print_info "请安装: ${PKG_INSTALL} nlohmann-json"
+            fi
             exit 1
         fi
     fi
@@ -108,7 +157,7 @@ check_dependencies() {
 
 # 获取编译标志
 get_compile_flags() {
-    # 使用pkg-config获取编译和链接标志 (Fedora 43 使用 webkitgtk-6.0 和 gtk4)
+    # 使用pkg-config获取编译和链接标志 (Fedora 和 ArchLinux 使用 webkitgtk-6.0 和 gtk4)
     CXXFLAGS+=" $(pkg-config --cflags webkitgtk-6.0 gtk4)"
     LDFLAGS="$(pkg-config --libs webkitgtk-6.0 gtk4)"
 
@@ -206,6 +255,9 @@ main() {
     
     # 打印标题
     print_header
+    
+    # 检测发行版
+    detect_distro
     
     # 如果只是清理
     if [ "$CLEAN_ONLY" = true ]; then

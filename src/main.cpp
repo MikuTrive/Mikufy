@@ -1,9 +1,24 @@
-/* Mikufy v2.2(stable) - 主程序入口
- * 代码编辑器应用程序
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Mikufy v2.4(stable) - 主程序入口
  *
- * 版本: v2.2
- * 平台: Fedora43 Linux (支持Wayland和XWayland)
- * 作者: MiraTrive/MikuTrive
+ * 这是Mikufy代码编辑器的主程序文件，包含应用程序的入口点main()函数。
+ * 该文件负责：
+ * - 解析命令行参数
+ * - 初始化各个子系统（文件管理器、Web服务器、窗口管理器）
+ * - 设置信号处理器（SIGINT、SIGTERM）
+ * - 管理应用程序的生命周期
+ *
+ * MiraTrive/MikuTrive
+ * Author: [Your Name]
+ *
+ * 本文件遵循Linux内核代码风格规范
+ */
+
+/*
+ * ============================================================================
+ * 头文件包含
+ * ============================================================================
  */
 
 #include "../headers/main.h"
@@ -11,25 +26,55 @@
 #include "../headers/web_server.h"
 #include "../headers/window_manager.h"
 
-#include <iostream>
-#include <csignal>
-#include <cstdlib>
+#include <iostream>		/* std::cout, std::cerr */
+#include <csignal>		/* signal(), SIGINT, SIGTERM */
+#include <cstdlib>		/* std::atoi(), exit() */
 
-/* 全局对象指针 */
-static FileManager *g_file_manager = nullptr;
-static WebServer *g_web_server = nullptr;
-static WindowManager *g_window_manager = nullptr;
+/*
+ * ============================================================================
+ * 全局变量声明
+ * ============================================================================
+ */
 
-/* 信号处理函数
- * 处理SIGINT和SIGTERM信号，优雅地关闭应用程序
+/*
+ * 全局对象指针
+ * 这些指针在整个应用程序生命周期中有效，用于跨模块访问核心对象
+ */
+static FileManager *g_file_manager = NULL;	/* 文件管理器指针 */
+static WebServer *g_web_server = NULL;		/* Web服务器指针 */
+static WindowManager *g_window_manager = NULL;	/* 窗口管理器指针 */
+
+/*
+ * ============================================================================
+ * 信号处理函数
+ * ============================================================================
+ */
+
+/**
+ * signal_handler - 信号处理函数
+ *
+ * 处理SIGINT（Ctrl+C）和SIGTERM信号，实现应用程序的优雅关闭。
+ * 该函数会停止Web服务器、关闭窗口，然后退出程序。
+ *
+ * 设计要点:
+ * - 使用静态变量防止重复处理
+ * - 首次调用时优雅关闭，再次调用时强制退出
+ * - 使用_exit()而不是exit()以避免GTK清理阻塞
+ *
+ * @signal: 信号编号（SIGINT或SIGTERM）
  */
 static void signal_handler(int signal)
 {
-	std::cout << "\n收到信号 " << signal << "，正在关闭..." << std::endl;
+	std::cout << "\n收到信号 " << signal << "，正在关闭..."
+		  << std::endl;
 
+	/* 静态变量防止重复处理 */
 	static bool terminating = false;
 	if (terminating) {
-		/* 如果已经在终止中，强制退出 */
+		/*
+		 * 如果已经在终止中，强制退出
+		 * 这可能发生在用户连续按下Ctrl+C的情况下
+		 */
 		_exit(1);
 	}
 	terminating = true;
@@ -46,15 +91,31 @@ static void signal_handler(int signal)
 	_exit(0);
 }
 
-/* 打印欢迎信息 */
+/*
+ * ============================================================================
+ * 辅助函数
+ * ============================================================================
+ */
+
+/**
+ * print_welcome - 打印欢迎信息
+ *
+ * 显示应用程序的名称和版本信息，提供友好的启动提示。
+ */
 static void print_welcome(void)
 {
 	std::cout << "========================================" << std::endl;
-	std::cout << "  Mikufy v2.2(stable) - Code Editor" << std::endl;
+	std::cout << "  Mikufy v2.4(stable) - Code Editor" << std::endl;
 	std::cout << "========================================" << std::endl;
 }
 
-/* 打印使用帮助 */
+/**
+ * print_usage - 打印使用帮助
+ *
+ * 显示命令行参数的使用说明，包括所有可用的选项及其用途。
+ *
+ * @program_name: 程序名称（argv[0]）
+ */
 static void print_usage(const char *program_name)
 {
 	std::cout << "用法: " << program_name << " [选项]" << std::endl;
@@ -67,33 +128,76 @@ static void print_usage(const char *program_name)
 	std::cout << std::endl;
 }
 
-/* 打印版本信息 */
+/**
+ * print_version - 打印版本信息
+ *
+ * 显示应用程序的名称、版本号和构建日期。
+ */
 static void print_version(void)
 {
 	std::cout << MIKUFY_NAME << " v" << MIKUFY_VERSION << std::endl;
 	std::cout << "构建日期: " << __DATE__ << " " << __TIME__ << std::endl;
 }
 
-/* 主函数
- * 程序入口点
+/*
+ * ============================================================================
+ * 主函数
+ * ============================================================================
+ */
+
+/**
+ * main - 主函数
+ *
+ * 应用程序的入口点，负责初始化所有子系统并启动应用程序。
+ * 该函数执行以下步骤：
+ * 1. 解析命令行参数
+ * 2. 注册信号处理器
+ * 3. 创建并初始化文件管理器
+ * 4. 创建并启动Web服务器
+ * 5. 创建并初始化窗口管理器
+ * 6. 加载前端页面
+ * 7. 显示窗口
+ * 8. 运行GTK主循环
+ * 9. 清理资源并退出
+ *
+ * 命令行参数:
+ * - -h, --help: 显示帮助信息并退出
+ * - -v, --version: 显示版本信息并退出
+ * - -p, --port: 指定Web服务器端口
+ *
+ * @argc: 命令行参数数量
+ * @argv: 命令行参数数组
+ *
+ * 返回值: 成功返回0，失败返回非零值
  */
 int main(int argc, char *argv[])
 {
-	/* 解析命令行参数 */
-	int port = WEB_SERVER_PORT;
+	int port = WEB_SERVER_PORT;	/* Web服务器端口 */
 
+	/*
+	 * ====================================================================
+	 * 第一步：解析命令行参数
+	 * ====================================================================
+	 */
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = argv[i];
 
+		/* 显示帮助信息 */
 		if (arg == "-h" || arg == "--help") {
 			print_usage(argv[0]);
 			return 0;
-		} else if (arg == "-v" || arg == "--version") {
+		}
+		/* 显示版本信息 */
+		else if (arg == "-v" || arg == "--version") {
 			print_version();
 			return 0;
-		} else if (arg == "-p" || arg == "--port") {
+		}
+		/* 设置端口 */
+		else if (arg == "-p" || arg == "--port") {
+			/* 检查是否有端口号参数 */
 			if (i + 1 < argc) {
 				port = std::atoi(argv[++i]);
+				/* 验证端口号范围 */
 				if (port <= 0 || port > 65535) {
 					std::cerr << "错误: 无效的端口号"
 						  << std::endl;
@@ -104,22 +208,43 @@ int main(int argc, char *argv[])
 					  << std::endl;
 				return 1;
 			}
-		} else {
+		}
+		/* 未知参数 */
+		else {
 			std::cerr << "错误: 未知选项 " << arg << std::endl;
 			print_usage(argv[0]);
 			return 1;
 		}
 	}
 
-	/* 打印欢迎信息 */
+	/*
+	 * ====================================================================
+	 * 第二步：打印欢迎信息
+	 * ====================================================================
+	 */
 	print_welcome();
 
-	/* 注册信号处理器 */
-	signal(SIGINT, signal_handler);
-	signal(SIGTERM, signal_handler);
+	/*
+	 * ====================================================================
+	 * 第三步：注册信号处理器
+	 * ====================================================================
+	 */
+	signal(SIGINT, signal_handler);	/* 处理Ctrl+C */
+	signal(SIGTERM, signal_handler);	/* 处理kill命令 */
+
+	/*
+	 * ====================================================================
+	 * 第四步：初始化各个子系统
+	 * ====================================================================
+	 */
 
 	try {
-		/* 1. 创建文件管理器 */
+		/*
+		 * ----------------------------------------------------------------
+		 * 1. 创建文件管理器
+		 * ----------------------------------------------------------------
+		 * FileManager负责所有文件系统操作，包括文件读写、目录遍历等
+		 */
 		std::cout << "正在初始化文件管理器..." << std::endl;
 		g_file_manager = new FileManager();
 		if (!g_file_manager) {
@@ -129,7 +254,12 @@ int main(int argc, char *argv[])
 		}
 		std::cout << "文件管理器初始化完成" << std::endl;
 
-		/* 2. 创建Web服务器 */
+		/*
+		 * ----------------------------------------------------------------
+		 * 2. 创建Web服务器
+		 * ----------------------------------------------------------------
+		 * WebServer提供HTTP服务，处理前端请求
+		 */
 		std::cout << "正在启动Web服务器 (端口: " << port << ")..."
 			  << std::endl;
 		g_web_server = new WebServer(g_file_manager);
@@ -139,7 +269,10 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 
-		/* 设置打开文件夹对话框的回调函数 */
+		/*
+		 * 设置打开文件夹对话框的回调函数
+		 * 当前端请求打开文件夹时，通过此回调调用WindowManager
+		 */
 		g_web_server->set_open_folder_callback([]() -> std::string {
 			try {
 				if (g_window_manager)
@@ -155,7 +288,10 @@ int main(int argc, char *argv[])
 			return "";
 		});
 
-		/* 启动Web服务器 */
+		/*
+		 * 启动Web服务器
+		 * 服务器将在独立线程中运行，处理HTTP请求
+		 */
 		if (!g_web_server->start(port)) {
 			std::cerr << "错误: 无法启动Web服务器" << std::endl;
 			delete g_web_server;
@@ -164,7 +300,12 @@ int main(int argc, char *argv[])
 		}
 		std::cout << "Web服务器启动成功" << std::endl;
 
-		/* 3. 创建窗口管理器 */
+		/*
+		 * ----------------------------------------------------------------
+		 * 3. 创建窗口管理器
+		 * ----------------------------------------------------------------
+		 * WindowManager负责GTK窗口和WebView的管理
+		 */
 		std::cout << "正在初始化窗口..." << std::endl;
 		g_window_manager = new WindowManager(g_web_server);
 		if (!g_window_manager) {
@@ -175,7 +316,10 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 
-		/* 初始化窗口 */
+		/*
+		 * 初始化窗口
+		 * 创建GTK窗口和WebView组件
+		 */
 		if (!g_window_manager->init()) {
 			std::cerr << "错误: 无法初始化窗口" << std::endl;
 			delete g_window_manager;
@@ -186,21 +330,38 @@ int main(int argc, char *argv[])
 		}
 		std::cout << "窗口初始化完成" << std::endl;
 
-		/* 4. 加载前端页面 */
+		/*
+		 * ----------------------------------------------------------------
+		 * 4. 加载前端页面
+		 * ----------------------------------------------------------------
+		 * 在WebView中加载前端HTML页面
+		 */
 		std::cout << "正在加载前端页面..." << std::endl;
 		g_window_manager->load_frontend_page();
 		std::cout << "前端页面加载完成" << std::endl;
 
-		/* 5. 显示窗口 */
+		/*
+		 * ----------------------------------------------------------------
+		 * 5. 显示窗口
+		 * ----------------------------------------------------------------
+		 * 将窗口显示到屏幕上
+		 */
 		std::cout << "正在显示窗口..." << std::endl;
 		g_window_manager->show();
 		std::cout << "Mikufy 已启动!" << std::endl;
 		std::cout << std::endl;
 
-		/* 6. 运行GTK主循环 */
+		/*
+		 * ----------------------------------------------------------------
+		 * 6. 运行GTK主循环
+		 * ----------------------------------------------------------------
+		 * 启动GTK主事件循环，开始处理窗口事件
+		 * 该方法会阻塞直到窗口关闭
+		 */
 		g_window_manager->run();
 
 	} catch (const std::exception &e) {
+		/* 捕获并处理异常 */
 		std::cerr << "错误: " << e.what() << std::endl;
 
 		/* 清理资源 */
@@ -211,7 +372,13 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	/* 清理资源 */
+	/*
+	 * ====================================================================
+	 * 第五步：清理资源并退出
+	 * ====================================================================
+	 */
+
+	/* 释放所有对象 */
 	delete g_window_manager;
 	delete g_web_server;
 	delete g_file_manager;
