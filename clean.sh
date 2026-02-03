@@ -12,7 +12,7 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-VERSION="2.3(stable)"
+VERSION="2.4(stable)"
 OUTPUT_FILE="mikufy"
 
 # 打印函数
