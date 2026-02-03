@@ -1,5 +1,7 @@
 # Mikufy v2.4(stable) - 代码编辑器
 
+特别感谢 @luozenan 对项目提供的核心代码贡献，在Linux平台的打包逻辑、桌面应用程序适配与兼容性优化上提交了关键支撑！
+现在Mikufy v2.4 也能支撑NixOS用户啦！
 
 <<<<<<< Updated upstream
 
