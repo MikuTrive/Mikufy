@@ -1,5 +1,5 @@
 /**
- * Mikufy v2.4(stable) - 代码编辑器样式表
+ * Mikufy v2.5(stable) - 代码编辑器样式表
  *
  * 本文件定义了Mikufy代码编辑器的所有样式
  *
@@ -20,7 +20,7 @@
  *   - 代码编辑：'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace
  *
  * 作者：MikuTrive
- * 版本：v2.4(stable)
+ * 版本：v2.5(stable)
  * 许可证：详见 LICENSE 文件
  */
 
@@ -54,7 +54,7 @@ html, body {
  * 使用壁纸作为背景，设置不透明度为0.65，确保内容可读性
  */
 body {
-    background-image: url('Background/index-4.png');
+    background-image: url('Background/index-17.png');
     background-size: cover;        /* 背景图片覆盖整个容器 */
     background-position: center;   /* 背景图片居中显示 */
     background-repeat: no-repeat;  /* 背景图片不重复 */
@@ -82,6 +82,59 @@ body {
     width: 40px;
     height: 40px;
     object-fit: contain;
+}
+
+/* ==========================================================================
+ * 通知栏样式
+ * ========================================================================== */
+
+/**
+ * 通知栏
+ * 功能：从头顶下滑显示通知信息
+ * 位置：页面顶部，固定定位
+ * 动画：丝滑下滑效果
+ * z-index：2000（确保在最上层）
+ */
+#notification {
+    position: fixed;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 25px;
+    background: rgba(40, 167, 69, 0.95);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 2000;
+    transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/**
+ * 通知栏显示状态
+ */
+#notification.show {
+    top: 10px;
+}
+
+/**
+ * 通知图标
+ */
+.notification-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/**
+ * 通知文本
+ */
+.notification-text {
+    white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -620,6 +673,34 @@ body {
  */
 .syntax-preprocessor {
     color: #c586c0;
+}
+
+/**
+ * 语法高亮 - 类型/类名
+ * 颜色：青色
+ * 适用于：类名、接口名、类型别名
+ */
+.syntax-type {
+    color: #4ec9b0;
+    font-weight: bold;
+}
+
+/**
+ * 语法高亮 - 属性访问
+ * 颜色：浅蓝色
+ * 适用于：对象属性访问
+ */
+.syntax-property {
+    color: #9cdcfe;
+}
+
+/**
+ * 语法高亮 - 注解/装饰器
+ * 颜色：粉色
+ * 适用于：Java注解、Python装饰器
+ */
+.syntax-annotation {
+    color: #d7ba7d;
 }
 
 #code-editor:focus {

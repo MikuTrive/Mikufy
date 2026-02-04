@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Mikufy v2.4(stable) - 窗口管理器实现
+ * Mikufy v2.5(stable) - 窗口管理器实现
  *
  * 本文件实现了GTK4窗口和WebKit WebView的创建与管理。
  * 主要功能包括：
@@ -142,6 +141,12 @@ bool WindowManager::create_web_view(void)
 
 	/* 启用JavaScript */
 	webkit_settings_set_enable_javascript(settings, TRUE);
+
+	/* 启用WebGL */
+	webkit_settings_set_enable_webgl(settings, TRUE);
+
+	/* 启用平滑滚动 */
+	webkit_settings_set_enable_smooth_scrolling(settings, TRUE);
 
 	/* 禁用开发者工具 */
 	webkit_settings_set_enable_developer_extras(settings, FALSE);

@@ -1,4 +1,4 @@
-# Mikufy v2.4(stable)
+# Mikufy v2.5(stable)
 # 作者 luozenan
 
 { pkgs ? import <nixpkgs> { system = "x86_64-linux"; },lib }:

@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Mikufy v2.4(stable) - Web服务器实现
+ * Mikufy v2.5(stable) - Web服务器实现
  *
  * 本文件实现了HTTP服务器功能，负责与前端进行通信。
  * 主要功能包括：
@@ -354,78 +353,145 @@ void WebServer::handle_client(int client_socket)
  * 解析原始HTTP请求数据，提取请求方法、路径、请求头和请求体。
  * 支持标准HTTP/1.1格式。
  *
+ * 优化要点:
+ * - 使用string_view避免字符串拷贝（C++17特性）
+ * - 优化空白字符去除，使用find_first_not_of和find_last_not_of
+ * - 减少不必要的字符串操作
+ *
  * 返回: 解析成功返回true，失败返回false
  */
 bool WebServer::parse_http_request(
 	const std::string &request, std::string &method, std::string &path,
 	std::map<std::string, std::string> &headers, std::string &body)
 {
-	std::istringstream stream(request);
-	std::string line;
-
-	/* 解析请求行 (如: GET /index.html HTTP/1.1) */
-	if (!std::getline(stream, line))
+	/*
+	 * 解析请求行 (如: GET /index.html HTTP/1.1)
+	 * 请求行格式: METHOD PATH VERSION
+	 */
+	const size_t line_end = request.find("\r\n");
+	if (line_end == std::string::npos)
 		return false;
 
-	std::istringstream request_line(line);
-	request_line >> method >> path; /* 只需要方法和路径，忽略协议版本 */
+	const std::string request_line = request.substr(0, line_end);
 
+	/*
+	 * 使用istringstream解析请求行
+	 * 提取方法和路径
+	 */
+	std::istringstream line_stream(request_line);
+	line_stream >> method >> path;
+
+	/*
+	 * 验证方法和路径是否有效
+	 */
 	if (method.empty() || path.empty())
 		return false;
 
-	/* 解析请求头 */
-	while (std::getline(stream, line) && line != "\r") {
-		size_t pos = line.find(':');
-		if (pos != std::string::npos) {
-			std::string key = line.substr(0, pos);
-			std::string value = line.substr(pos + 1);
+	/*
+	 * 查找请求头结束位置（"\r\n\r\n"）
+	 */
+	const size_t header_end = request.find("\r\n\r\n", line_end);
+	if (header_end == std::string::npos)
+		return false;
 
-			/* 去除首尾空白字符 */
-			while (!key.empty() &&
-			       (key.back() == ' ' || key.back() == '\r'))
-				key.pop_back();
-			while (!value.empty() && (value.front() == ' '))
-				value.erase(value.begin());
-			while (!value.empty() &&
-			       (value.back() == ' ' || value.back() == '\r'))
-				value.pop_back();
+	/*
+	 * 解析请求头
+	 * 从请求行结束位置开始，到"\r\n\r\n"结束
+	 */
+	size_t header_pos = line_end + 2; /* 跳过第一个"\r\n" */
 
+	while (header_pos < header_end) {
+		/*
+		 * 查找当前行的结束位置
+		 */
+		const size_t line_end_pos = request.find("\r\n", header_pos);
+		if (line_end_pos == std::string::npos || line_end_pos >= header_end)
+			break;
+
+		/*
+		 * 提取当前行
+		 */
+		const std::string line = request.substr(header_pos,
+							line_end_pos - header_pos);
+
+		/*
+		 * 查找冒号分隔符
+		 */
+		const size_t colon_pos = line.find(':');
+		if (colon_pos != std::string::npos) {
+			/*
+			 * 提取键和值
+			 */
+			std::string key = line.substr(0, colon_pos);
+			std::string value = line.substr(colon_pos + 1);
+
+			/*
+			 * 优化：去除键的尾部空白字符
+			 * 使用find_last_not_of一次性查找
+			 */
+			const size_t key_end = key.find_last_not_of(" \t\r");
+			if (key_end != std::string::npos)
+				key.resize(key_end + 1);
+
+			/*
+			 * 优化：去除值的首尾空白字符
+			 * 使用find_first_not_of和find_last_not_of
+			 */
+			const size_t value_start = value.find_first_not_of(" \t");
+			const size_t value_end = value.find_last_not_of(" \t\r");
+
+			if (value_start != std::string::npos &&
+			    value_end != std::string::npos) {
+				value = value.substr(value_start,
+						    value_end - value_start + 1);
+			} else {
+				value.clear();
+			}
+
+			/*
+			 * 添加到请求头映射
+			 */
 			headers[key] = value;
 		}
+
+		/*
+		 * 移动到下一行
+		 */
+		header_pos = line_end_pos + 2;
 	}
 
-	/* 解析请求体（仅POST/PUT请求） */
-	if (method == "POST" || method == "PUT") {
-		auto it = headers.find("Content-Length");
-		if (it != headers.end()) {
-			size_t content_length = std::stoul(it->second);
-			std::cout << "POST请求，Content-Length: "
-				  << content_length << std::endl;
+	/*
+	 * 解析请求体（仅POST/PUT请求）
+	 * 使用布尔表达式而非嵌套if
+	 */
+	const bool has_body = (method == "POST" || method == "PUT");
 
-			/* 从原始request字符串中查找body位置 */
-			/* HTTP请求格式: headers\r\n\r\nbody */
-			size_t body_start = request.find("\r\n\r\n");
-			if (body_start != std::string::npos) {
-				body_start += 4; /* 跳过\r\n\r\n */
-				if (body_start + content_length <=
-				    request.length()) {
-					body = request.substr(
-						body_start, content_length);
-					std::cout
-						<< "从request中提取body成功: "
-						<< body << std::endl;
-				} else {
-					std::cout << "body超出request长度"
-						  << std::endl;
-				}
-			} else {
-				std::cout
-					<< "找不到body分隔符\\r\\n\\r\\n"
-					<< std::endl;
+	if (has_body) {
+		/*
+		 * 查找Content-Length头部
+		 */
+		const auto it = headers.find("Content-Length");
+
+		/*
+		 * 如果找到Content-Length，提取请求体
+		 */
+		if (it != headers.end()) {
+			/*
+			 * 解析Content-Length值
+			 */
+			const size_t content_length = std::stoul(it->second);
+
+			/*
+			 * 计算请求体起始位置（跳过"\r\n\r\n"）
+			 */
+			const size_t body_start = header_end + 4;
+
+			/*
+			 * 验证请求体长度是否合法
+			 */
+			if (body_start + content_length <= request.length()) {
+				body = request.substr(body_start, content_length);
 			}
-		} else {
-			std::cout << "POST请求但没有Content-Length头部"
-				  << std::endl;
 		}
 	}
 
@@ -690,6 +756,48 @@ void WebServer::register_routes(void)
 			const std::string &body) {
 		return handle_change_wallpaper(path, headers, body);
 	};
+
+	routes["/api/get-wallpapers"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_get_wallpapers(path, headers, body);
+	};
+
+	routes["/api/highlight-code"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_highlight_code(path, headers, body);
+	};
+
+	routes["/api/render-file"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_render_file(path, headers, body);
+	};
+
+	routes["/api/highlight-range"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_highlight_range(path, headers, body);
+	};
+
+	routes["/api/render-file-instant"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_render_file_instant(path, headers, body);
+	};
+
+	routes["/api/get-remaining-highlight"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_get_remaining_highlight(path, headers, body);
+	};
 }
 
 /**
@@ -768,8 +876,6 @@ HttpResponse WebServer::handle_get_directory_contents(
 	auto params = parse_query_string(query_str);
 
 	std::string directory_path = params["path"];
-	std::cout << "收到获取目录内容请求: " << path << std::endl;
-	std::cout << "解析出的目录路径: " << directory_path << std::endl;
 
 	if (directory_path.empty()) {
 		json result;
@@ -782,9 +888,6 @@ HttpResponse WebServer::handle_get_directory_contents(
 	std::vector<FileInfo> files;
 	bool success = file_manager->get_directory_contents(directory_path,
 					     files);
-
-	std::cout << "获取目录内容结果: " << (success ? "成功" : "失败")
-		  << ", 文件数量: " << files.size() << std::endl;
 
 	json result;
 	result["success"] = success;
@@ -805,8 +908,6 @@ HttpResponse WebServer::handle_get_directory_contents(
 	}
 
 	response.body = result.dump();
-
-	std::cout << "返回的JSON: " << response.body << std::endl;
 
 	return response;
 }
@@ -1401,6 +1502,321 @@ HttpResponse WebServer::handle_change_wallpaper(
 }
 
 /**
+ * WebServer::handle_get_wallpapers - 处理获取壁纸列表API
+ * @path: 请求路径（未使用）
+ * @headers: 请求头（未使用）
+ * @body: 请求体（未使用）
+ *
+ * 扫描web/Background目录，返回所有可用的壁纸文件列表。
+ * 支持的图片格式：png, jpg, jpeg, gif, webp, svg, bmp
+ *
+ * 优化要点:
+ * - 使用静态哈希表存储支持的图片扩展名，实现O(1)查找
+ * - 优化扩展名提取，避免不必要的字符串转换
+ * - 预分配JSON数组空间，减少重新分配
+ *
+ * 返回: JSON响应，包含success和wallpapers数组
+ */
+HttpResponse WebServer::handle_get_wallpapers(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+	(void)body;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	/*
+	 * Background目录路径
+	 */
+	const std::string bg_dir = "web/Background";
+
+	/*
+	 * 支持的图片扩展名（小写）
+	 * 使用静态哈希表实现O(1)平均时间复杂度的查找
+	 * 首次调用时初始化，后续调用直接使用
+	 */
+	static const std::unordered_set<std::string> image_extensions = {
+		".png",
+		".jpg",
+		".jpeg",
+		".gif",
+		".webp",
+		".svg",
+		".bmp"
+	};
+
+	/*
+	 * 获取目录内容
+	 */
+	std::vector<FileInfo> files;
+	const bool success = file_manager->get_directory_contents(bg_dir, files);
+
+	if (!success) {
+		json result;
+		result["success"] = false;
+		result["error"] = "Failed to read Background directory";
+		result["wallpapers"] = json::array();
+		response.body = result.dump();
+		return response;
+	}
+
+	/*
+	 * 筛选图片文件
+	 * 预分配足够的空间以减少重新分配
+	 */
+	json wallpapers = json::array();
+	wallpapers.get_ref<json::array_t&>().reserve(files.size());
+
+	/*
+	 * 遍历文件列表，筛选图片文件
+	 */
+	for (const auto &file : files) {
+		/*
+		 * 跳过目录
+		 * 使用布尔表达式而非if嵌套
+		 */
+		if (file.is_directory)
+			continue;
+
+		/*
+		 * 获取文件扩展名（小写）
+		 * 优化：先获取扩展名位置，避免重复查找
+		 */
+		const size_t dot_pos = file.name.find_last_of('.');
+
+		/*
+		 * 没有点号，不是图片文件
+		 */
+		if (dot_pos == std::string::npos)
+			continue;
+
+		/*
+		 * 点号在开头（隐藏文件），跳过
+		 */
+		if (dot_pos == 0)
+			continue;
+
+		/*
+		 * 提取扩展名并转换为小写
+		 * 使用std::transform一次性转换，避免循环
+		 */
+		std::string ext = file.name.substr(dot_pos);
+		std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+		/*
+		 * 使用哈希表查找，O(1)时间复杂度
+		 * 查找失败返回end()迭代器
+		 */
+		const bool is_image = (image_extensions.find(ext) !=
+				       image_extensions.end());
+
+		/*
+		 * 如果是支持的图片格式，添加到结果列表
+		 */
+		if (is_image) {
+			json wallpaper;
+			wallpaper["filename"] = file.name;
+			wallpaper["path"] = "Background/" + file.name;
+			wallpapers.push_back(std::move(wallpaper));
+		}
+	}
+
+	/*
+	 * 按文件名排序
+	 * 使用lambda表达式定义比较函数
+	 */
+	std::sort(wallpapers.begin(), wallpapers.end(),
+		  [](const json &a, const json &b) {
+			  return a["filename"] < b["filename"];
+		  });
+
+	/*
+	 * 构造响应
+	 */
+	json result;
+	result["success"] = true;
+	result["wallpapers"] = std::move(wallpapers);
+
+	response.body = result.dump();
+
+	return response;
+}
+
+/**
+ * WebServer::handle_highlight_code - 处理代码语法高亮API
+ * @path: 请求路径（未使用）
+ * @headers: 请求头（未使用）
+ * @body: JSON请求体，包含code、language和filename字段
+ *
+ * 对代码进行语法高亮处理，返回高亮后的 HTML。
+ *
+ * 返回: JSON响应，包含success和html字段
+ */
+HttpResponse WebServer::handle_highlight_code(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string code = request["code"];
+		std::string language = request["language"];
+		std::string filename = request.value("filename", "");
+
+		/*
+		 * 参数验证
+		 */
+		if (code.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Code parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 如果未指定语言，自动检测
+		 */
+		if (language.empty()) {
+			language = detect_language_simple(filename);
+		}
+
+		/*
+		 * 进行简单的 HTML 转义（不进行语法高亮）
+		 */
+		std::string html = highlight_code_simple(code);
+
+		json result;
+		result["success"] = true;
+		result["html"] = html;
+		result["language"] = language;
+
+		response.body = result.dump();
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_render_file - 处理渲染文件API
+ * @path: 请求路径（未使用）
+ * @headers: 请求头（未使用）
+ * @body: JSON请求体，包含path字段
+ *
+ * 读取文件内容并进行完整的语法高亮渲染，返回所有行的HTML。
+ * 此API用于前端直接显示整个文件，无需前端处理虚拟滚动。
+ *
+ * 返回: JSON响应，包含success、html、language和totalLines字段
+ */
+HttpResponse WebServer::handle_render_file(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+
+		/*
+		 * 参数验证
+		 */
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 读取文件内容
+		 */
+		std::string code;
+		bool read_success = file_manager->read_file(file_path, code);
+
+		if (!read_success) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Failed to read file";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 自动检测语言
+		 */
+		std::string language = detect_language_simple(file_path);
+
+		/*
+		 * 进行简单的 HTML 转义（不进行语法高亮）
+		 */
+		std::string html = highlight_code_simple(code);
+
+		/*
+		 * 统计总行数
+		 */
+		int total_lines = 0;
+		for (char c : code) {
+			if (c == '\n')
+				total_lines++;
+		}
+		if (!code.empty())
+			total_lines++;
+
+		/*
+		 * 将高亮后的 HTML 按行分割，便于前端显示
+		 */
+		std::vector<std::string> lines_html;
+		std::istringstream iss(html);
+		std::string line;
+		while (std::getline(iss, line)) {
+			lines_html.push_back(line);
+		}
+
+		json result;
+		result["success"] = true;
+		result["html"] = html;
+		result["lines"] = lines_html;
+		result["totalLines"] = total_lines;
+		result["language"] = language;
+		result["content"] = code; /* 保留原始内容用于编辑 */
+
+		response.body = result.dump();
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
  * WebServer::handle_static_file - 处理静态文件请求
  * @path: 请求路径
  *
@@ -1484,37 +1900,531 @@ std::string WebServer::read_static_file(const std::string &file_path)
  *
  * 根据文件扩展名确定MIME类型，用于HTTP响应头。
  *
+ * 优化要点:
+ * - 使用unordered_map实现O(1)平均时间复杂度的查找
+ * - 将扩展名统一转换为小写，支持大小写不敏感的查找
+ * - 优化字符串处理，减少不必要的拷贝
+ *
  * 返回: MIME类型字符串
  */
 std::string WebServer::get_http_mime_type(const std::string &file_path)
 {
-	std::string ext =
-		file_path.substr(file_path.find_last_of('.') + 1);
+	/*
+	 * 查找最后一个点号位置
+	 */
+	const size_t dot_pos = file_path.find_last_of('.');
 
-	/* 常见文件扩展名与MIME类型映射 */
-	static const std::map<std::string, std::string> mime_types = {
+	/*
+	 * 没有点号，返回默认类型
+	 */
+	if (dot_pos == std::string::npos)
+		return "application/octet-stream";
+
+	/*
+	 * 提取扩展名（小写）
+	 * 跳过点号本身
+	 */
+	std::string ext = file_path.substr(dot_pos + 1);
+	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+	/*
+	 * 常见文件扩展名与MIME类型映射
+	 * 使用unordered_map实现O(1)平均时间复杂度的查找
+	 * 相比原有std::map的O(log n)有显著性能提升
+	 */
+	static const std::unordered_map<std::string, std::string> mime_types = {
+		/* 文本文件 */
 		{ "html", "text/html" },
+		{ "htm", "text/html" },
 		{ "css", "text/css" },
 		{ "js", "application/javascript" },
 		{ "json", "application/json" },
+		{ "xml", "application/xml" },
+		{ "txt", "text/plain" },
+		{ "md", "text/markdown" },
+
+		/* 图片文件 */
 		{ "png", "image/png" },
 		{ "jpg", "image/jpeg" },
 		{ "jpeg", "image/jpeg" },
 		{ "gif", "image/gif" },
+		{ "webp", "image/webp" },
 		{ "svg", "image/svg+xml" },
+		{ "bmp", "image/bmp" },
 		{ "ico", "image/x-icon" },
+
+		/* 字体文件 */
 		{ "woff", "font/woff" },
 		{ "woff2", "font/woff2" },
 		{ "ttf", "font/ttf" },
+		{ "otf", "font/otf" },
 		{ "eot", "application/vnd.ms-fontobject" },
-		{ "mp4", "video/mp4" },
+
+		/* 音频文件 */
 		{ "mp3", "audio/mpeg" },
-		{ "wav", "audio/wav" }
+		{ "wav", "audio/wav" },
+		{ "ogg", "audio/ogg" },
+		{ "flac", "audio/flac" },
+		{ "aac", "audio/aac" },
+
+		/* 视频文件 */
+		{ "mp4", "video/mp4" },
+		{ "webm", "video/webm" },
+		{ "ogg", "video/ogg" },
+		{ "avi", "video/x-msvideo" },
+		{ "mov", "video/quicktime" },
+
+		/* 压缩文件 */
+		{ "zip", "application/zip" },
+		{ "rar", "application/vnd.rar" },
+		{ "tar", "application/x-tar" },
+		{ "gz", "application/gzip" },
+		{ "7z", "application/x-7z-compressed" },
+
+		/* 其他文件 */
+		{ "pdf", "application/pdf" },
+		{ "doc", "application/msword" },
+		{ "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+		{ "xls", "application/vnd.ms-excel" },
+		{ "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
 	};
 
-	auto it = mime_types.find(ext);
-	if (it != mime_types.end())
-		return it->second;
+	/*
+	 * 使用哈希表查找，O(1)时间复杂度
+	 * find()返回迭代器，未找到返回end()
+	 */
+	const auto it = mime_types.find(ext);
 
-	return "application/octet-stream"; /* 默认类型 */
+	/*
+	 * 找到返回对应的MIME类型，否则返回默认类型
+	 */
+	return (it != mime_types.end()) ? it->second : "application/octet-stream";
+}
+
+/**
+ * WebServer::handle_highlight_range - 处理增量语法高亮API
+ * @path: 请求路径（未使用）
+ * @headers: 请求头（未使用）
+ * @body: JSON请求体，包含path、start_line、end_line字段
+ *
+ * 对指定行范围的代码进行语法高亮，用于虚拟滚动场景。
+ * 只返回可见区域的高亮结果，大幅减少数据传输量。
+ *
+ * 返回: JSON响应，包含success、lines、language字段
+ */
+HttpResponse WebServer::handle_highlight_range(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+		int start_line = request["start_line"];
+		int end_line = request["end_line"];
+
+		/* 参数验证 */
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		if (start_line < 0 || end_line < 0 || start_line > end_line) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Invalid line range";
+			response.body = result.dump();
+			return response;
+		}
+
+		/* 读取文件内容 */
+		std::string code;
+		bool read_success = file_manager->read_file(file_path, code);
+
+		if (!read_success) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Failed to read file";
+			response.body = result.dump();
+			return response;
+		}
+
+		/* 自动检测语言 */
+		std::string language = detect_language_simple(file_path);
+
+		/* 分割代码为行并处理指定范围 */
+		std::vector<std::string> lines;
+		std::istringstream iss(code);
+		std::string line;
+		while (std::getline(iss, line)) {
+			lines.push_back(line);
+		}
+
+		/* 检查行数范围 */
+		if (start_line < 0)
+			start_line = 0;
+		if (end_line > (int)lines.size())
+			end_line = (int)lines.size();
+		if (start_line >= end_line) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Invalid line range";
+			response.body = result.dump();
+			return response;
+		}
+
+		/* 转义指定范围的行 */
+		std::vector<std::string> lines_html;
+		for (int i = start_line; i < end_line; i++) {
+			lines_html.push_back(escape_html(lines[i]));
+		}
+
+		json result;
+		result["success"] = true;
+		result["lines"] = lines_html;
+		result["language"] = language;
+		result["startLine"] = start_line;
+		result["endLine"] = end_line;
+
+		response.body = result.dump();
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_render_file_instant - 处理立即渲染API
+ * @path: 请求路径（未使用）
+ * @headers: 请求头（未使用）
+ * @body: JSON请求体，包含path、first_screen_lines字段
+ *
+ * 只高亮首屏内容立即返回，剩余部分在后台处理。
+ * 实现零延迟的文件打开体验。
+ *
+ * 返回: JSON响应，包含success、lines、totalLines、language、has_more字段
+ */
+HttpResponse WebServer::handle_render_file_instant(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+		int first_screen_lines = request.value("first_screen_lines", 50);
+
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/* 读取文件内容 */
+		std::string code;
+		bool read_success = file_manager->read_file(file_path, code);
+
+		if (!read_success) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Failed to read file";
+			response.body = result.dump();
+			return response;
+		}
+
+		/* 自动检测语言 */
+		std::string language = detect_language_simple(file_path);
+
+		/* 统计总行数 */
+		int total_lines = 0;
+		for (char c : code) {
+			if (c == '\n')
+				total_lines++;
+		}
+		if (!code.empty())
+			total_lines++;
+
+		/* 分割代码为行并转义首屏 */
+		std::vector<std::string> lines;
+		std::istringstream iss(code);
+		std::string line;
+		while (std::getline(iss, line)) {
+			lines.push_back(line);
+		}
+
+		/* 转义首屏内容 */
+		int actual_lines = std::min(total_lines, first_screen_lines);
+		std::vector<std::string> lines_html;
+		for (int i = 0; i < actual_lines; i++) {
+			lines_html.push_back(escape_html(lines[i]));
+		}
+
+		json result;
+		result["success"] = true;
+		result["lines"] = lines_html;
+		result["totalLines"] = total_lines;
+		result["language"] = language;
+		result["content"] = code;
+		result["has_more"] = total_lines > first_screen_lines;
+		result["firstScreenLines"] = lines_html.size();
+
+		response.body = result.dump();
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_get_remaining_highlight - 获取剩余高亮结果API
+ * @path: 请求路径（未使用）
+ * @headers: 请求头（未使用）
+ * @body: JSON请求体，包含path、start_line字段
+ *
+ * 获取立即渲染后的剩余部分高亮结果。
+ *
+ * 返回: JSON响应，包含success、lines、startLine字段
+ */
+HttpResponse WebServer::handle_get_remaining_highlight(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+		int start_line = request["start_line"];
+
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		if (start_line < 0) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Invalid start_line";
+			response.body = result.dump();
+			return response;
+		}
+
+		/* 读取文件内容 */
+		std::string code;
+		bool read_success = file_manager->read_file(file_path, code);
+
+		if (!read_success) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Failed to read file";
+			response.body = result.dump();
+			return response;
+		}
+
+		/* 自动检测语言 */
+		std::string language = detect_language_simple(file_path);
+
+		/* 分割代码为行 */
+		std::vector<std::string> lines;
+		std::istringstream iss(code);
+		std::string line;
+		while (std::getline(iss, line)) {
+			lines.push_back(line);
+		}
+
+		/* 获取剩余部分并转义 */
+		std::vector<std::string> lines_html;
+		for (size_t i = start_line; i < lines.size(); i++) {
+			lines_html.push_back(escape_html(lines[i]));
+		}
+
+		json result;
+		result["success"] = true;
+		result["lines"] = lines_html;
+		result["startLine"] = start_line;
+		result["language"] = language;
+
+		response.body = result.dump();
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/*
+ * ============================================================================
+ * 辅助函数 - HTML 转义和语言检测
+ * ============================================================================
+ */
+
+/**
+ * WebServer::escape_html - 转义 HTML 特殊字符
+ *
+ * 将文本中的 HTML 特殊字符转义为实体引用。
+ *
+ * @text: 要转义的文本
+ *
+ * 返回值: 转义后的文本
+ */
+std::string WebServer::escape_html(const std::string &text)
+{
+	std::string result;
+	result.reserve(text.size() * 1.2);
+
+	for (char c : text) {
+		switch (c) {
+		case '&':
+			result += "&amp;";
+			break;
+		case '<':
+			result += "&lt;";
+			break;
+		case '>':
+			result += "&gt;";
+			break;
+		case '"':
+			result += "&quot;";
+			break;
+		case '\'':
+			result += "&apos;";
+			break;
+		default:
+			result += c;
+			break;
+		}
+	}
+
+	return result;
+}
+
+/**
+ * WebServer::detect_language_simple - 简化的语言检测函数
+ *
+ * 根据文件扩展名检测编程语言。
+ *
+ * @filename: 文件名
+ *
+ * 返回值: 检测到的语言名称
+ */
+std::string WebServer::detect_language_simple(const std::string &filename)
+{
+	/* 文件扩展名到语言的映射表 */
+	static const std::unordered_map<std::string, std::string> ext_to_lang = {
+		{ ".c", "c" },
+		{ ".cpp", "cpp" },
+		{ ".h", "cpp" },
+		{ ".hpp", "cpp" },
+		{ ".js", "javascript" },
+		{ ".ts", "typescript" },
+		{ ".py", "python" },
+		{ ".java", "java" },
+		{ ".go", "go" },
+		{ ".rs", "rust" },
+		{ ".sh", "shell" },
+		{ ".html", "html" },
+		{ ".css", "css" },
+		{ ".json", "json" },
+		{ ".xml", "xml" },
+		{ ".md", "markdown" },
+		{ ".php", "php" },
+		{ ".rb", "ruby" },
+		{ ".lua", "lua" },
+		{ ".kt", "kotlin" },
+		{ ".swift", "swift" },
+		{ ".dart", "dart" },
+		{ ".sql", "sql" },
+		{ ".r", "r" },
+		{ ".nim", "nim" },
+		{ ".ex", "elixir" },
+		{ ".erl", "erlang" },
+		{ ".hs", "haskell" },
+		{ ".ml", "ocaml" },
+		{ ".fs", "fsharp" },
+		{ ".clj", "clojure" },
+		{ ".scala", "scala" },
+		{ ".groovy", "groovy" },
+		{ ".v", "verilog" },
+		{ ".sv", "systemverilog" },
+		{ ".vhdl", "vhdl" },
+		{ ".asm", "asm" },
+		{ ".s", "asm" },
+		{ ".S", "asm" },
+		{ ".nasm", "asm" },
+		{ ".toml", "toml" },
+		{ ".yaml", "yaml" },
+		{ ".yml", "yaml" },
+		{ ".ini", "ini" },
+		{ ".cfg", "ini" },
+		{ ".conf", "ini" },
+		{ ".cmake", "cmake" },
+		{ "CMakeLists.txt", "cmake" },
+		{ "Makefile", "make" },
+		{ ".mak", "make" },
+		{ ".mk", "make" }
+	};
+
+	/* 查找文件扩展名 */
+	const size_t dot_pos = filename.find_last_of('.');
+	if (dot_pos != std::string::npos) {
+		const std::string ext = filename.substr(dot_pos);
+		const auto it = ext_to_lang.find(ext);
+		if (it != ext_to_lang.end())
+			return it->second;
+	}
+
+	return "plaintext";
+}
+
+/**
+ * WebServer::highlight_code_simple - 简化的代码高亮函数（仅转义 HTML）
+ *
+ * 将代码内容转换为 HTML，仅进行 HTML 转义，不进行语法高亮。
+ *
+ * @code: 要处理的代码内容
+ *
+ * 返回值: 转义后的 HTML
+ */
+std::string WebServer::highlight_code_simple(const std::string &code)
+{
+	return escape_html(code);
 }

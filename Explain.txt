@@ -1,11 +1,13 @@
-Mikufy v2.3(stable) - Fedora43/ArchLinux 依赖包列表
+Mikufy v2.5(stable) - Fedora43、ArchLinux、Debian13 依赖包列表
 ====================================
 
 必需依赖：
 ----------
 sudo dnf install webkitgtk6.0-devel gtk4-devel file-devel json-devel gcc-c++ pkg-config glib2-devel
-====================================================================================================
+========================================================================================================================
 sudo pacman -S pkgconf base-devel webkitgtk6.0 gtk4 glib2-devel file nlohmann-json
+========================================================================================================================
+sudo apt install pkg-config  libwebkitgtk-6.0-dev file libgtk-4-dev nlohmann-json3-dev g++ libglib2.0-dev libmagic-dev
 
 依赖说明：
 ----------
@@ -19,9 +21,3 @@ sudo pacman -S pkgconf base-devel webkitgtk6.0 gtk4 glib2-devel file nlohmann-js
 编译命令：
 ----------
 ./build.sh
-
-注意事项：
-----------
-1. Fedora 43 只提供 webkitgtk6.0，不支持 webkit2gtk-4.1
-2. 本项目已从 WebKitGTK 4.1/GTK3 迁移到 WebKitGTK 6.0/GTK4
-3. 编译前请确保已安装上述所有依赖
