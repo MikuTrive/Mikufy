@@ -1,9 +1,5 @@
 #
-<<<<<<< Updated upstream
-# Mikufy v2.4(stable) - 一键编译脚本
-=======
 # Mikufy v2.5(stable) - 一键编译脚本
->>>>>>> Stashed changes
 # 编译整个项目为单个可执行文件
 # 通过检测包管理器支持任意发行版（dnf、apt、pacman 等）
 #
@@ -17,11 +13,7 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-<<<<<<< Updated upstream
-VERSION="2.4(stable)"
-=======
 VERSION="2.5(stable)"
->>>>>>> Stashed changes
 OUTPUT_FILE="mikufy"
 
 # 编译器设置
