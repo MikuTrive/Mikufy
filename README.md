@@ -108,29 +108,7 @@
  * 本文件遵循Linux内核代码风格规范
  */
 ```
-Mikufy/
-├── src/                   # C++ 源代码目录
-│   ├── main.cpp           # 主程序入口
-│   ├── file_manager.cpp   # 文件管理器实现
-│   ├── web_server.cpp     # Web服务器实现
-│   └── window_manager.cpp # 窗口管理器实现
-├── headers/               # C++ 头文件目录
-│   ├── main.h             # 主头文件，包含全局定义
-│   ├── file_manager.h     # 文件管理器头文件
-│   ├── web_server.h       # Web服务器头文件
-│   └── window_manager.h   # 窗口管理器头文件
-├── web/                   # 前端源代码目录
-│   ├── index.html         # HTML结构文件
-│   ├── style.css          # CSS样式文件
-│   ├── app.js             # JavaScript交互逻辑
-│   ├── Icons/             # 图标资源目录
-│   ├── Background.png     # 背景图片
-│   └── Mikufy.png         # Logo图片
-├── build.sh               # 一键编译脚本
-├── clean.sh               # 一键清理脚本
-├── Explain.txt            # 依赖列表文件
-└── README.md              # 本文件
-```
+
 
 #### 3. 命名约定
 
