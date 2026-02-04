@@ -1,0 +1,1436 @@
+/**
+ * Mikufy v2.5(stable) - 代码编辑器样式表
+ *
+ * 本文件定义了Mikufy代码编辑器的所有样式
+ *
+ * 设计原则：
+ *   - 暗色主题：采用深色背景，减少眼睛疲劳
+ *   - 响应式设计：支持不同屏幕尺寸
+ *   - 性能优化：使用硬件加速和高效的CSS属性
+ *   - 可维护性：模块化组织样式，清晰的注释
+ *
+ * 配色方案：
+ *   - 背景色：rgba(36, 36, 46, 1.0) - 深灰色
+ *   - 文字色：#e0e0e0 - 浅灰色
+ *   - 强调色：#4a90d9 (蓝色), #ff9800 (橙色), #4caf50 (绿色)
+ *   - 滚动条：半透明灰色
+ *
+ * 字体系统：
+ *   - 界面文字：'Segoe UI', Tahoma, Geneva, Verdana, sans-serif
+ *   - 代码编辑：'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace
+ *
+ * 作者：MikuTrive
+ * 版本：v2.5(stable)
+ * 许可证：详见 LICENSE 文件
+ */
+
+/* ==========================================================================
+ * 全局样式重置和基础设置
+ * ========================================================================== */
+
+/**
+ * 全局样式重置
+ * 清除所有元素的默认margin和padding，设置box-sizing为border-box
+ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/**
+ * HTML和Body元素样式
+ * 设置页面为全屏显示，禁止页面滚动，设置默认字体
+ */
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* 禁止页面整体滚动 */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/**
+ * Body背景设置
+ * 使用壁纸作为背景，设置不透明度为0.65，确保内容可读性
+ */
+body {
+    background-image: url('Background/index-17.png');
+    background-size: cover;        /* 背景图片覆盖整个容器 */
+    background-position: center;   /* 背景图片居中显示 */
+    background-repeat: no-repeat;  /* 背景图片不重复 */
+    background-attachment: fixed;  /* 背景图片固定，不随滚动条移动 */
+    opacity: 0.65;                 /* 设置不透明度，使背景半透明 */
+}
+
+/* ==========================================================================
+ * Logo区域样式
+ * ========================================================================== */
+
+/**
+ * Logo容器
+ * 位置：页面左上角
+ * z-index：1000（确保在其他元素之上）
+ */
+#logo-container {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+}
+
+#logo-img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+/* ==========================================================================
+ * 通知栏样式
+ * ========================================================================== */
+
+/**
+ * 通知栏
+ * 功能：从头顶下滑显示通知信息
+ * 位置：页面顶部，固定定位
+ * 动画：丝滑下滑效果
+ * z-index：2000（确保在最上层）
+ */
+#notification {
+    position: fixed;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 25px;
+    background: rgba(40, 167, 69, 0.95);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 2000;
+    transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/**
+ * 通知栏显示状态
+ */
+#notification.show {
+    top: 10px;
+}
+
+/**
+ * 通知图标
+ */
+.notification-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/**
+ * 通知文本
+ */
+.notification-text {
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+ * 主界面容器样式
+ * ========================================================================== */
+
+/**
+ * 主界面容器
+ * 布局：Flexbox水平布局（左右分栏）
+ * 占据整个视口，预留Logo和边距空间
+ */
+#main-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    padding: 60px 10px 10px 10px;
+}
+
+/* ==========================================================================
+ * 左侧面板样式（文件浏览区域）
+ * ========================================================================== */
+
+/**
+ * 左侧面板
+ * 功能：文件浏览和管理
+ * 布局：Flexbox垂直布局
+ * 尺寸：宽度280px（可调整200-400px）
+ */
+#left-panel {
+    display: flex;
+    flex-direction: column;
+    width: 280px;
+    min-width: 200px;
+    max-width: 400px;
+    background-color: rgba(36, 36, 46, 1.0);
+    border-radius: 8px;
+    overflow: hidden;
+    opacity: 1.0;
+}
+
+/**
+ * 文件操作工具栏
+ * 功能：提供常用的文件操作按钮
+ * 布局：Flexbox水平布局，按钮间距10px
+ */
+#file-toolbar {
+    display: flex;
+    padding: 10px;
+    gap: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+#file-toolbar button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+#file-toolbar button:hover {
+    background-color: rgba(255, 255, 255, 0.55);
+}
+
+#file-toolbar button img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+/* 当前路径显示区域 */
+#path-display {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+#current-path {
+    flex: 1;
+    padding: 6px 10px;
+    border: 2px solid #4a90d9;
+    border-radius: 15px;
+    color: #ffffff;
+    font-size: 13px;
+    background-color: rgba(26, 26, 36, 1.0);
+}
+
+#btn-back {
+    margin-left: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #ff9800;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#btn-back:hover:not(:disabled) {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.95);
+}
+
+#btn-back:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+#btn-back img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+/* 文件树区域 */
+#file-tree {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 5px 0;
+}
+
+/* 文件树滚动条样式 */
+#file-tree::-webkit-scrollbar {
+    width: 8px;
+}
+
+#file-tree::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 1.0);
+}
+
+#file-tree::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 120, 1.0);
+    border-radius: 4px;
+}
+
+#file-tree::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 140, 1.0);
+}
+
+/* 文件树项样式 */
+.file-tree-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s;
+}
+
+.file-tree-item:hover {
+    background-color: rgba(255, 255, 255, 0.98);
+}
+
+.file-tree-item.selected {
+    background-color: rgba(0, 255, 0, 0.75);
+}
+
+.file-tree-expand-btn {
+    width: 20px;
+    height: 20px;
+    background: #ff9800;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 5px;
+    padding: 0;
+    transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.file-tree-expand-btn:hover {
+    background-color: #ffb84d;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.8);
+}
+
+.file-tree-expand-btn img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+}
+
+.file-tree-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    object-fit: contain;
+}
+
+.file-tree-name {
+    flex: 1;
+    color: #e0e0e0;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-tree-item.directory .file-tree-name {
+    font-weight: 500;
+}
+
+/* ==========================================================================
+ * 右侧面板样式（代码编辑区域）
+ * ========================================================================== */
+
+/**
+ * 右侧面板
+ * 功能：代码编辑和多标签页管理
+ * 布局：Flexbox垂直布局
+ * 占据：剩余的所有可用空间（flex: 1）
+ */
+#right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-left: 10px;
+    background-color: rgba(36, 36, 46, 1.0);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/**
+ * 标签页容器
+ * 功能：显示和管理打开的文件标签
+ * 布局：Flexbox垂直布局
+ */
+#tabs-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 35px;
+    background-color: rgba(31, 31, 41, 1.0);
+    opacity: 1.0;
+}
+
+#tabs-scroll {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#tabs-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+/* 标签页样式 */
+.tab-item {
+    display: flex;
+    align-items: center;
+    min-width: 120px;
+    max-width: 200px;
+    height: 35px;
+    padding: 0 10px;
+    background-color: rgba(50, 50, 60, 1.0);
+    border-right: 1px solid rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s;
+}
+
+.tab-item:hover {
+    background-color: rgba(60, 60, 70, 1.0);
+}
+
+.tab-item.active {
+    background-color: rgba(0, 255, 0, 0.75);
+    border-bottom: 2px solid #4a90d9;
+}
+
+.tab-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    object-fit: contain;
+}
+
+.tab-name {
+    flex: 1;
+    color: #e0e0e0;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tab-close {
+    width: 18px;
+    height: 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    border-radius: 3px;
+    transition: background-color 0.15s;
+}
+
+.tab-close:hover {
+    background-color: rgba(255, 100, 100, 1.0);
+}
+
+.tab-close img {
+    width: 12px;
+    height: 12px;
+    object-fit: contain;
+}
+
+/* 标签页水平滚动条 - 已隐藏，改用滚轮滚动 */
+#tabs-scrollbar {
+    display: none;
+}
+
+#tabs-scrollbar-thumb {
+    display: none;
+}
+
+/**
+ * 代码编辑器容器
+ * 功能：包含行号和代码编辑区
+ * 布局：Flexbox水平布局
+ * 特性：支持自定义滚动条、媒体预览模式切换
+ */
+#editor-container {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+    opacity: 1.0;
+}
+
+/**
+ * 行号区域
+ * 功能：显示代码行号，与代码编辑区同步滚动
+ * 尺寸：宽度50px，固定
+ * 背景：半透明灰色，方便区分
+ */
+#line-numbers {
+    width: 50px;
+    min-width: 50px;
+    background-color: rgba(128, 128, 128, 0.8);
+    color: #000000;
+    font-weight: bold;
+    font-family: 'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 10px 5px;
+    text-align: right;
+    user-select: none;
+    overflow: hidden;
+}
+
+.line-number {
+    height: 21px;
+    line-height: 21px;
+}
+
+/**
+ * 代码编辑区域
+ * 功能：提供代码编辑功能，支持语法高亮
+ * 字体：等宽字体（Cascadia Mono等）
+ * 特性：
+ *   - contenteditable：可编辑
+ *   - 自动缩进：保留空格和换行
+ *   - 滚动支持：垂直滚动
+ */
+#code-editor {
+    flex: 1;
+    background-color: rgba(10, 10, 15, 1.0);
+    color: #ffffff;
+    font-family: 'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 10px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
+    outline: none;
+    cursor: text;
+    /* 防止 contenteditable 自动规范化空格 */
+    -webkit-user-modify: read-write-plaintext-only;
+    user-modify: read-write-plaintext-only;
+}
+
+/* 确保代码编辑器内的所有 div 都保留空格 */
+#code-editor div {
+    white-space: pre !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    /* 防止空格被折叠或合并 */
+    display: block;
+    min-height: 21px;
+}
+
+/* 显示原生滚动条但使用自定义样式 */
+#code-editor::-webkit-scrollbar {
+    width: 14px;
+}
+
+#code-editor::-webkit-scrollbar-track {
+    background-color: rgba(30, 30, 40, 1.0);
+}
+
+#code-editor::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 100, 120, 0.8);
+    border-radius: 7px;
+    min-height: 30px;
+}
+
+#code-editor::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(120, 120, 140, 1.0);
+}
+
+/* 代码编辑区域内的文本选择颜色 */
+#code-editor::selection {
+    background-color: rgba(0, 255, 0, 0.75);
+    color: #ffffff;
+}
+
+/* 全局文本选择颜色 */
+::selection {
+    background-color: rgba(0, 255, 0, 0.75);
+    color: #ffffff;
+}
+
+/* 代码编辑区域内的文本选择颜色 */
+#code-editor ::selection {
+    background-color: rgba(0, 255, 0, 0.75);
+    color: #ffffff;
+}
+
+/* ==========================================================================
+ * 语法高亮样式
+ * ========================================================================== */
+
+/**
+ * 语法高亮 - 关键字
+ * 颜色：蓝色加粗
+ * 适用于：if、else、for、while、return等关键字
+ */
+.syntax-keyword {
+    color: #569cd6;
+    font-weight: bold;
+}
+
+/**
+ * 语法高亮 - 字符串
+ * 颜色：橙红色
+ * 适用于：单引号、双引号、模板字符串
+ */
+.syntax-string {
+    color: #ce9178;
+}
+
+/**
+ * 语法高亮 - 数字
+ * 颜色：浅绿色
+ * 适用于：整数、浮点数、科学计数法
+ */
+.syntax-number {
+    color: #b5cea8;
+}
+
+/**
+ * 语法高亮 - 注释
+ * 颜色：绿色斜体
+ * 适用于：单行注释（//）、多行注释（/* *\/）
+ */
+.syntax-comment {
+    color: #6a9955;
+    font-style: italic;
+}
+
+/**
+ * 语法高亮 - 函数
+ * 颜色：黄色
+ * 适用于：函数定义和函数调用
+ */
+.syntax-function {
+    color: #dcdcaa;
+}
+
+/**
+ * 语法高亮 - 运算符
+ * 颜色：浅灰色
+ * 适用于：+、-、*、/、=、==、!=等运算符
+ */
+.syntax-operator {
+    color: #d4d4d4;
+}
+
+/**
+ * 语法高亮 - 宏定义
+ * 颜色：紫色
+ * 适用于：C/C++宏定义、常量
+ */
+.syntax-macro {
+    color: #c586c0;
+}
+
+/**
+ * 语法高亮 - 包含指令
+ * 颜色：紫色
+ * 适用于：#include等预处理指令
+ */
+.syntax-include {
+    color: #c586c0;
+}
+
+/**
+ * 语法高亮 - 结构体/类名
+ * 颜色：青色
+ * 适用于：struct、class定义
+ */
+.syntax-struct {
+    color: #4ec9b0;
+}
+
+/**
+ * 语法高亮 - 预处理指令
+ * 颜色：紫色
+ * 适用于：#define、#ifdef、#pragma等
+ */
+.syntax-preprocessor {
+    color: #c586c0;
+}
+
+/**
+ * 语法高亮 - 类型/类名
+ * 颜色：青色
+ * 适用于：类名、接口名、类型别名
+ */
+.syntax-type {
+    color: #4ec9b0;
+    font-weight: bold;
+}
+
+/**
+ * 语法高亮 - 属性访问
+ * 颜色：浅蓝色
+ * 适用于：对象属性访问
+ */
+.syntax-property {
+    color: #9cdcfe;
+}
+
+/**
+ * 语法高亮 - 注解/装饰器
+ * 颜色：粉色
+ * 适用于：Java注解、Python装饰器
+ */
+.syntax-annotation {
+    color: #d7ba7d;
+}
+
+#code-editor:focus {
+    outline: none;
+}
+
+/* 垂直滚动条 - 恢复显示 */
+#vertical-scrollbar {
+    width: 14px;
+    background-color: rgba(30, 30, 40, 1.0);
+    cursor: pointer;
+}
+
+#vertical-scrollbar-thumb {
+    width: 10px;
+    margin: 0 2px;
+    background-color: rgba(100, 100, 120, 0.8);
+    border-radius: 5px;
+    min-height: 30px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+#vertical-scrollbar-thumb:hover {
+    background-color: rgba(120, 120, 140, 1.0);
+}
+
+/* ==========================================================================
+ * 弹窗和对话框样式
+ * ========================================================================== */
+
+/**
+ * 右键菜单
+ * 功能：对文件或文件夹执行操作（重命名、删除）
+ * 位置：固定定位，跟随鼠标
+ * 默认状态：隐藏
+ */
+#context-menu {
+    position: fixed;
+    background-color: rgba(40, 40, 50, 1.0);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 1.0);
+    z-index: 2000;
+    min-width: 150px;
+}
+
+#context-menu div {
+    padding: 10px 15px;
+    color: #e0e0e0;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+#context-menu div:hover {
+    background-color: rgba(74, 144, 217, 1.0);
+}
+
+/**
+ * 新建对话框
+ * 功能：创建新文件或文件夹
+ * 位置：页面居中
+ * 默认状态：隐藏
+ * 背景：半透明黑色遮罩
+ */
+#new-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    opacity: 1.0;
+}
+
+#new-dialog-content {
+    background-color: rgba(40, 40, 50, 1.0);
+    border-radius: 8px;
+    padding: 20px;
+    min-width: 300px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 1.0);
+}
+
+#new-dialog-content h3 {
+    color: #ffffff;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+#new-dialog-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-radius: 4px;
+    background-color: rgba(30, 30, 40, 1.0);
+    color: #e0e0e0;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+#new-dialog-input:focus {
+    outline: none;
+    border-color: #4a90d9;
+}
+
+#new-dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+#new-dialog-buttons button {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.15s;
+}
+
+#new-dialog-confirm {
+    background-color: #4a90d9;
+    color: #ffffff;
+}
+
+#new-dialog-confirm:hover {
+    background-color: #5aa0e9;
+}
+
+#new-dialog-cancel {
+    background-color: rgba(100, 100, 100, 1.0);
+    color: #e0e0e0;
+}
+
+#new-dialog-cancel:hover {
+    background-color: rgba(120, 120, 120, 1.0);
+}
+
+/* ==========================================================================
+ * 了解页面样式
+ * ========================================================================== */
+
+/**
+ * 了解页面内容容器
+ * 功能：显示应用介绍、快捷键、功能列表等信息
+ * 布局：Flexbox水平布局
+ */
+.about-content {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 20px;
+    color: #e0e0e0;
+    gap: 30px;
+    font-family: 'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    user-select: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.about-logo {
+    flex-shrink: 0;
+}
+
+.about-logo img {
+    width: 300px;
+    height: 300px;
+    object-fit: contain;
+}
+
+.about-info {
+    flex: 1;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 30px !important;
+    min-width: 0 !important;
+}
+
+.about-shortcuts,
+.about-features {
+    flex: 1 !important;
+    min-width: 0 !important;
+    display: block !important;
+}
+
+.about-info h2 {
+    font-size: 18px;
+    margin: 0 0 8px 0;
+    color: #6ab0ff;
+}
+
+.about-info ul {
+    margin-left: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.about-info li {
+    margin-bottom: 8px;
+}
+
+.about-info kbd {
+    background-color: rgba(74, 144, 217, 1.0);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* ==========================================================================
+ * 媒体文件显示样式
+ * ========================================================================== */
+
+/**
+ * 媒体文件容器
+ * 功能：居中显示图片、视频、音频等媒体文件
+ * 布局：Flexbox居中布局
+ * 背景：纯黑色，突出显示媒体内容
+ */
+.media-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 1.0);
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.media-image {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.media-video {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.media-video video {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.audio-player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.audio-player audio {
+    width: 60%;
+    min-width: 300px;
+    margin-top: 0;
+}
+
+.video-preview {
+    max-width: 90%;
+    max-height: 70%;
+    background-color: rgba(0, 0, 0, 1.0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.video-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.play-button {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background-color: rgba(255, 255, 255, 1.0);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.play-button:hover {
+    transform: scale(1.1);
+}
+
+.play-button::after {
+    content: '';
+    width: 0;
+    height: 0;
+    border-left: 30px solid #333;
+    border-top: 18px solid transparent;
+    border-bottom: 18px solid transparent;
+    margin-left: 5px;
+}
+
+.audio-player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.audio-button {
+    padding: 15px 40px;
+    font-size: 16px;
+    background-color: #4a90d9;
+    color: #ffffff;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.audio-button:hover {
+    background-color: #5aa0e9;
+    transform: scale(1.05);
+}
+
+.audio-button:active {
+    transform: scale(0.98);
+}
+
+/* 当显示媒体文件时，编辑器容器背景不透明 */
+#editor-container.media-mode {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 1.0);
+}
+
+#editor-container.media-mode #line-numbers {
+    opacity: 0;
+}
+
+#editor-container.media-mode #code-editor {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 隐藏元素的类 */
+.hidden {
+    display: none !important;
+}
+
+/* ==========================================================================
+ * 设置页面样式
+ * ========================================================================== */
+
+/**
+ * 设置页面内容容器
+ * 功能：显示应用设置选项
+ * 布局：Flexbox垂直布局
+ * 特性：右对齐显示
+ */
+.settings-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding: 20px;
+    color: #e0e0e0;
+    font-family: 'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    user-select: none;
+    pointer-events: none;
+}
+
+.settings-header {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+    pointer-events: auto;
+}
+
+.settings-button {
+    font-size: 16px;
+    font-weight: bold;
+    color: #4a90d9;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 10px 20px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    user-select: none;
+    outline: none;
+}
+
+.settings-button:focus {
+    outline: none;
+}
+
+.settings-button:hover {
+    background-color: rgba(74, 144, 217, 0.2);
+}
+
+/* 设置页面行样式 */
+.settings-line {
+    width: 100%;
+    height: 21px;
+    line-height: 21px;
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
+}
+
+/**
+ * 壁纸选择弹窗
+ * 功能：选择编辑器背景壁纸
+ * 位置：页面居中
+ * 默认状态：隐藏
+ * 特性：网格布局显示壁纸缩略图
+ */
+#wallpaper-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+}
+
+#wallpaper-dialog-content {
+    background-color: rgba(40, 40, 50, 1.0);
+    border: 3px solid #4caf50;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 1.0);
+    max-width: 90%;
+    max-height: 80%;
+    overflow: hidden;
+}
+
+#wallpaper-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+#wallpaper-grid::-webkit-scrollbar {
+    width: 10px;
+}
+
+#wallpaper-grid::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 1.0);
+    border-radius: 5px;
+}
+
+#wallpaper-grid::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 120, 1.0);
+    border-radius: 5px;
+}
+
+#wallpaper-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 140, 1.0);
+}
+
+.wallpaper-item {
+    position: relative;
+    cursor: pointer;
+    border: 3px solid #ff9800;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+.wallpaper-item.selected {
+    transform: scale(0.95);
+    box-shadow: 0 0 15px rgba(255, 152, 0, 0.8);
+}
+
+.wallpaper-item:hover {
+    box-shadow: 0 0 15px rgba(255, 152, 0, 0.6);
+}
+
+.wallpaper-preview {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    display: block;
+}
+
+/**
+ * 自定义消息弹窗
+ * 功能：显示提示、警告、错误等信息
+ * 位置：页面居中
+ * 默认状态：隐藏
+ * 特性：淡入和滑入动画效果
+ */
+#message-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+#message-dialog-content {
+    background: linear-gradient(135deg, rgba(60, 60, 80, 1.0) 0%, rgba(40, 40, 60, 1.0) 100%);
+    border-radius: 12px;
+    min-width: 380px;
+    max-width: 500px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 152, 0, 0.3);
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: scale(0.9) translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+#message-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px 12px 0 0;
+}
+
+#message-dialog-title {
+    color: #ff9800;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#message-dialog-title::before {
+    content: '⚠';
+    font-size: 18px;
+}
+
+.message-dialog-close-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 28px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.message-dialog-close-btn:hover {
+    background: rgba(255, 152, 0, 0.2);
+    color: #ff9800;
+}
+
+#message-dialog-body {
+    padding: 24px 20px;
+}
+
+#message-dialog-message {
+    color: #e0e0e0;
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0;
+    word-wrap: break-word;
+}
+
+#message-dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 20px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 0 0 12px 12px;
+}
+
+.message-dialog-btn {
+    padding: 10px 28px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    min-width: 100px;
+}
+
+#message-dialog-ok {
+    background: linear-gradient(135deg, #ff9800 0%, #ff7700 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.4);
+}
+
+#message-dialog-ok:hover {
+    background: linear-gradient(135deg, #ffaa33 0%, #ff8800 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
+}
+
+#message-dialog-ok:active {
+    transform: translateY(0);
+}
+
+/* LICENSE 特殊贴图样式 */
+.license-badge {
+    width: 14px;
+    height: 14px;
+    margin-right: 2px;
+    margin-left: 2px;
+    opacity: 0.8;
+}
+
+/* ============================================================================
+ * 保存通知弹窗样式
+ * ============================================================================
+ */
+
+/* 保存通知容器 */
+.save-notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 5000;
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    animation: slideInDown 0.3s ease-out;
+}
+
+/* 保存成功样式 */
+.save-notification.save-success {
+    background-color: rgba(76, 175, 80, 0.95);
+    border: 2px solid #4caf50;
+}
+
+/* 保存失败样式 */
+.save-notification.save-failure {
+    background-color: rgba(244, 67, 54, 0.95);
+    border: 2px solid #f44336;
+}
+
+/* 通知图标 */
+.save-notification-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+/* 通知文本 */
+.save-notification-text {
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* 淡出动画 */
+.save-notification.fade-out {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+}
+
+/* 滑入动画 */
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
