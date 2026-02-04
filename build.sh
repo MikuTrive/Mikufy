@@ -1,7 +1,11 @@
 #
+<<<<<<< Updated upstream
 # Mikufy v2.4(stable) - 一键编译脚本
+=======
+# Mikufy v2.5(stable) - 一键编译脚本
+>>>>>>> Stashed changes
 # 编译整个项目为单个可执行文件
-# 支持 Fedora 和 ArchLinux
+# 通过检测包管理器支持任意发行版（dnf、apt、pacman 等）
 #
 
 # 颜色定义
@@ -13,7 +17,11 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
+<<<<<<< Updated upstream
 VERSION="2.4(stable)"
+=======
+VERSION="2.5(stable)"
+>>>>>>> Stashed changes
 OUTPUT_FILE="mikufy"
 
 # 编译器设置
@@ -55,27 +63,72 @@ print_header() {
     echo ""
 }
 
-# 检测发行版
-detect_distro() {
-    print_info "检测系统发行版..."
+# 检测包管理器
+detect_package_manager() {
+    print_info "检测包管理器..."
     
     DISTRO_NAME=$(cat /etc/os-release | grep "^NAME=" | cut -d '"' -f 2)
+    ID_LIKE=$(cat /etc/os-release | grep "^ID_LIKE=" | cut -d '"' -f 2)
     print_info "检测到发行版: ${DISTRO_NAME}"
+    if [ -n "$ID_LIKE" ]; then
+        print_info "基于发行版: ${ID_LIKE}"
+    fi
     
-    if [[ "$DISTRO_NAME" == *"Arch"* ]] || [[ "$DISTRO_NAME" == *"arch"* ]]; then
-        DISTRO="arch"
-        PKG_MANAGER="pacman"
-        PKG_INSTALL="sudo pacman -S"
-        print_success "检测到 ArchLinux"
-    elif [[ "$DISTRO_NAME" == *"Fedora"* ]] || [[ "$DISTRO_NAME" == *"fedora"* ]]; then
-        DISTRO="fedora"
+    # 优先通过 ID_LIKE 推断包管理器
+    if [[ "$ID_LIKE" == *"fedora"* ]] || [[ "$ID_LIKE" == *"rhel"* ]] || [[ "$ID_LIKE" == *"centos"* ]]; then
         PKG_MANAGER="dnf"
         PKG_INSTALL="sudo dnf install"
-        print_success "检测到 Fedora"
-    else
-        print_error "不支持的发行版: ${DISTRO_NAME}"
-        print_info "目前仅支持 Fedora 和 ArchLinux"
-        exit 1
+        PKG_FAMILY="rpm"
+        print_success "检测到 dnf 包管理器 (RPM 系)"
+    elif [[ "$ID_LIKE" == *"debian"* ]] || [[ "$ID_LIKE" == *"ubuntu"* ]]; then
+        PKG_MANAGER="apt"
+        PKG_INSTALL="sudo apt install"
+        PKG_FAMILY="deb"
+        print_success "检测到 apt 包管理器 (DEB 系)"
+    elif [[ "$ID_LIKE" == *"arch"* ]]; then
+        PKG_MANAGER="pacman"
+        PKG_INSTALL="sudo pacman -S"
+        PKG_FAMILY="pacman"
+        print_success "检测到 pacman 包管理器 (Arch 系)"
+    fi
+    
+    # 如果 ID_LIKE 没有匹配，直接检查包管理器命令
+    if [ -z "$PKG_MANAGER" ]; then
+        if command -v dnf &> /dev/null; then
+            PKG_MANAGER="dnf"
+            PKG_INSTALL="sudo dnf install"
+            PKG_FAMILY="rpm"
+            print_success "检测到 dnf 包管理器"
+        elif command -v yum &> /dev/null; then
+            PKG_MANAGER="yum"
+            PKG_INSTALL="sudo yum install"
+            PKG_FAMILY="rpm"
+            print_success "检测到 yum 包管理器"
+        elif command -v apt &> /dev/null; then
+            PKG_MANAGER="apt"
+            PKG_INSTALL="sudo apt install"
+            PKG_FAMILY="deb"
+            print_success "检测到 apt 包管理器"
+        elif command -v apt-get &> /dev/null; then
+            PKG_MANAGER="apt-get"
+            PKG_INSTALL="sudo apt-get install"
+            PKG_FAMILY="deb"
+            print_success "检测到 apt-get 包管理器"
+        elif command -v pacman &> /dev/null; then
+            PKG_MANAGER="pacman"
+            PKG_INSTALL="sudo pacman -S"
+            PKG_FAMILY="pacman"
+            print_success "检测到 pacman 包管理器"
+        elif command -v zypper &> /dev/null; then
+            PKG_MANAGER="zypper"
+            PKG_INSTALL="sudo zypper install"
+            PKG_FAMILY="rpm"
+            print_success "检测到 zypper 包管理器"
+        else
+            print_error "未找到支持的包管理器"
+            print_info "支持的包管理器: dnf、yum、apt、apt-get、pacman、zypper"
+            exit 1
+        fi
     fi
 }
 
@@ -86,10 +139,12 @@ check_dependencies() {
     # 检查g++
     if ! command -v g++ &> /dev/null; then
         print_error "未找到 g++ 编译器"
-        if [ "$DISTRO" = "fedora" ]; then
+        if [ "$PKG_FAMILY" = "rpm" ]; then
             print_info "请安装: ${PKG_INSTALL} gcc-c++"
-        else
+        elif [ "$PKG_FAMILY" = "pacman" ]; then
             print_info "请安装: ${PKG_INSTALL} base-devel"
+        elif [ "$PKG_FAMILY" = "deb" ]; then
+            print_info "请安装: ${PKG_INSTALL} g++"
         fi
         exit 1
     fi
@@ -97,10 +152,12 @@ check_dependencies() {
     # 检查pkg-config
     if ! command -v pkg-config &> /dev/null; then
         print_error "未找到 pkg-config"
-        if [ "$DISTRO" = "fedora" ]; then
+        if [ "$PKG_FAMILY" = "rpm" ]; then
             print_info "请安装: ${PKG_INSTALL} pkg-config"
-        else
+        elif [ "$PKG_FAMILY" = "pacman" ]; then
             print_info "请安装: ${PKG_INSTALL} pkgconf"
+        elif [ "$PKG_FAMILY" = "deb" ]; then
+            print_info "请安装: ${PKG_INSTALL} pkg-config"
         fi
         exit 1
     fi
@@ -108,10 +165,12 @@ check_dependencies() {
     # 检查webkitgtk-6.0
     if ! pkg-config --exists webkitgtk-6.0; then
         print_error "未找到 webkitgtk-6.0"
-        if [ "$DISTRO" = "fedora" ]; then
+        if [ "$PKG_FAMILY" = "rpm" ]; then
             print_info "请安装: ${PKG_INSTALL} webkitgtk6.0-devel"
-        else
+        elif [ "$PKG_FAMILY" = "pacman" ]; then
             print_info "请安装: ${PKG_INSTALL} webkitgtk6.0"
+        elif [ "$PKG_FAMILY" = "deb" ]; then
+            print_info "请安装: ${PKG_INSTALL} libwebkitgtk-6.0-dev"
         fi
         exit 1
     fi
@@ -119,10 +178,12 @@ check_dependencies() {
     # 检查gtk-4
     if ! pkg-config --exists gtk4; then
         print_error "未找到 gtk-4"
-        if [ "$DISTRO" = "fedora" ]; then
+        if [ "$PKG_FAMILY" = "rpm" ]; then
             print_info "请安装: ${PKG_INSTALL} gtk4-devel"
-        else
+        elif [ "$PKG_FAMILY" = "pacman" ]; then
             print_info "请安装: ${PKG_INSTALL} gtk4"
+        elif [ "$PKG_FAMILY" = "deb" ]; then
+            print_info "请安装: ${PKG_INSTALL} libgtk-4-dev"
         fi
         exit 1
     fi
@@ -130,10 +191,12 @@ check_dependencies() {
     # 检查libmagic
     if ! pkg-config --exists libmagic; then
         print_error "未找到 libmagic"
-        if [ "$DISTRO" = "fedora" ]; then
+        if [ "$PKG_FAMILY" = "rpm" ]; then
             print_info "请安装: ${PKG_INSTALL} file-devel"
-        else
+        elif [ "$PKG_FAMILY" = "pacman" ]; then
             print_info "请安装: ${PKG_INSTALL} file"
+        elif [ "$PKG_FAMILY" = "deb" ]; then
+            print_info "请安装: ${PKG_INSTALL} libmagic-dev"
         fi
         exit 1
     fi
@@ -143,10 +206,12 @@ check_dependencies() {
         print_warning "未找到 nlohmann_json，尝试使用系统头文件..."
         if [ ! -f "/usr/include/nlohmann/json.hpp" ]; then
             print_error "未找到 nlohmann/json.hpp"
-            if [ "$DISTRO" = "fedora" ]; then
+            if [ "$PKG_FAMILY" = "rpm" ]; then
                 print_info "请安装: ${PKG_INSTALL} json-devel"
-            else
+            elif [ "$PKG_FAMILY" = "pacman" ]; then
                 print_info "请安装: ${PKG_INSTALL} nlohmann-json"
+            elif [ "$PKG_FAMILY" = "deb" ]; then
+                print_info "请安装: ${PKG_INSTALL} nlohmann-json3-dev"
             fi
             exit 1
         fi
@@ -198,14 +263,38 @@ compile() {
     fi
 }
 
-# 清理临时文件
+# 清理临时文件和编译产物
 cleanup() {
-    print_info "清理临时文件..."
-    
+    print_info "清理编译产物和临时文件..."
+
+    # 删除可执行文件
+    if [ -f "${OUTPUT_FILE}" ]; then
+        rm -f "${OUTPUT_FILE}"
+        print_success "已删除: ${OUTPUT_FILE}"
+    fi
+
+    # 删除.o文件
+    if ls *.o 1> /dev/null 2>&1; then
+        rm -f *.o
+        print_success "已删除: *.o 文件"
+    fi
+
+    # 删除.so文件
+    if ls *.so 1> /dev/null 2>&1; then
+        rm -f *.so
+        print_success "已删除: *.so 文件"
+    fi
+
+    # 删除.a文件
+    if ls *.a 1> /dev/null 2>&1; then
+        rm -f *.a
+        print_success "已删除: *.a 文件"
+    fi
+
     # 删除build目录
     if [ -d "build" ]; then
         rm -rf build
-        print_success "临时文件已清理"
+        print_success "已删除: build/"
     fi
 }
 
@@ -256,8 +345,8 @@ main() {
     # 打印标题
     print_header
     
-    # 检测发行版
-    detect_distro
+    # 检测包管理器
+    detect_package_manager
     
     # 如果只是清理
     if [ "$CLEAN_ONLY" = true ]; then

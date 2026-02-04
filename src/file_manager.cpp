@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
- * Mikufy v2.4(stable) - 文件管理器实现
+ * Mikufy v2.5(stable) - 文件管理器实现
  *
  * 本文件实现了FileManager类的所有方法，提供完整的文件系统操作功能。
  * FileManager封装了底层的文件操作API，提供线程安全的接口，并使用
@@ -43,9 +42,9 @@
  * FileManager - 构造函数
  *
  * 初始化FileManager对象，设置libmagic句柄为nullptr，并调用
- * init_magic()方法初始化libmagic库。
+ * init_magic()方法初始化libmagic库。同时初始化文件缓存。
  */
-FileManager::FileManager() : magic_cookie(nullptr)
+FileManager::FileManager() : magic_cookie(nullptr), cache_size(0)
 {
 	init_magic();
 }
@@ -144,42 +143,35 @@ bool FileManager::get_directory_contents(const std::string &path,
 {
 	std::lock_guard<std::mutex> lock(mutex);
 
-	std::cout << "FileManager::get_directory_contents 开始，路径: "
-		  << path << std::endl;
-
 	/* 打开目录 */
 	DIR *dir = opendir(path.c_str());
-	if (!dir) {
-		std::cout << "无法打开目录: " << strerror(errno) << std::endl;
+	if (!dir)
 		return false;
-	}
-
-	std::cout << "成功打开目录，开始读取条目" << std::endl;
 
 	struct dirent *entry;
 	int count = 0;
-	int total_entries = 0;
 
-	/* 遍历目录中的所有条目 */
+	/*
+	 * 遍历目录中的所有条目
+	 * 优化：减少系统调用，延迟获取 MIME 类型
+	 */
 	while ((entry = readdir(dir)) != nullptr) {
-		total_entries++;
-		std::cout << "读取到条目 #" << total_entries << ": "
-			  << entry->d_name << std::endl;
-
 		/*
 		 * 跳过当前目录(.)和父目录(..)
-		 * 这两个特殊目录不应该显示在文件列表中
 		 */
 		if (strcmp(entry->d_name, ".") == 0 ||
-		    strcmp(entry->d_name, "..") == 0) {
-			std::cout << "  跳过 . 或 .." << std::endl;
+		    strcmp(entry->d_name, "..") == 0)
 			continue;
-		}
 
-		std::cout << "  创建FileInfo" << std::endl;
+		/*
+		 * 跳过隐藏文件（以.开头）
+		 */
+		if (entry->d_name[0] == '.' &&
+		    strcmp(entry->d_name, ".") != 0 &&
+		    strcmp(entry->d_name, "..") != 0)
+			continue;
+
 		FileInfo info;
-
-		/* 设置文件名 */
 		info.name = entry->d_name;
 
 		/* 构建完整路径 */
@@ -188,71 +180,61 @@ bool FileManager::get_directory_contents(const std::string &path,
 			info.path += '/';
 		info.path += entry->d_name;
 
-		std::cout << "  调用stat: " << info.path << std::endl;
-
 		/*
 		 * 获取文件状态信息
-		 * 使用stat()系统调用获取文件的详细属性
+		 * 优先使用 dirent 的 d_type 字段，避免 stat 调用
 		 */
-		struct stat stat_buf;
-		if (stat(info.path.c_str(), &stat_buf) == 0) {
-			/* 判断是否为目录 */
-			info.is_directory = S_ISDIR(stat_buf.st_mode);
-			/* 获取文件大小 */
-			info.size = stat_buf.st_size;
-			std::cout << "  stat成功，is_directory="
-				  << info.is_directory << ", size="
-				  << info.size << std::endl;
-		} else {
-			/*
-			 * stat()失败，使用dirent中的类型信息
-			 * 这在某些文件系统中可能不准确
-			 */
-			std::cout << "  stat失败: " << strerror(errno)
-				  << std::endl;
+		if (entry->d_type != DT_UNKNOWN) {
+			/* 使用 dirent 提供的类型信息 */
 			info.is_directory = (entry->d_type == DT_DIR);
-			info.size = 0;
+			if (entry->d_type == DT_REG) {
+				/* 只对常规文件调用 stat 获取大小 */
+				struct stat stat_buf;
+				if (stat(info.path.c_str(), &stat_buf) == 0)
+					info.size = stat_buf.st_size;
+				else
+					info.size = 0;
+			} else {
+				info.size = 0;
+			}
+		} else {
+			/* d_type 未知，必须调用 stat */
+			struct stat stat_buf;
+			if (stat(info.path.c_str(), &stat_buf) == 0) {
+				info.is_directory = S_ISDIR(stat_buf.st_mode);
+				info.size = stat_buf.st_size;
+			} else {
+				info.is_directory = false;
+				info.size = 0;
+			}
 		}
 
 		/*
-		 * 获取MIME类型和二进制标志
-		 * 仅对文件进行类型检测，目录不处理
+		 * 延迟获取 MIME 类型
+		 * 目录不需要检测，文件只在需要时检测（懒加载）
 		 */
-		if (!info.is_directory) {
-			std::cout << "  获取MIME类型" << std::endl;
-			info.mime_type = get_mime_type(info.path);
-			info.is_binary = is_binary_file(info.path);
-			std::cout << "  MIME类型: " << info.mime_type
-				  << ", is_binary: " << info.is_binary
-				  << std::endl;
-		} else {
-			/* 目录的MIME类型固定为inode/directory */
+		if (info.is_directory) {
 			info.mime_type = "inode/directory";
+			info.is_binary = false;
+		} else {
+			/* 暂时不获取 MIME 类型，设置为空字符串 */
+			info.mime_type = "";
 			info.is_binary = false;
 		}
 
 		/* 将FileInfo添加到结果列表 */
 		files.push_back(info);
 		count++;
-		std::cout << "  添加到files列表，当前count=" << count
-			  << std::endl;
 
 		/*
 		 * 限制读取数量，防止在超大目录中卡死
-		 * 1000个条目是一个合理的上限
 		 */
-		if (count >= 1000) {
-			std::cout << "  达到读取上限1000，停止读取"
-				  << std::endl;
+		if (count >= MAX_DIR_ENTRIES)
 			break;
-		}
 	}
 
 	/* 关闭目录句柄 */
-	std::cout << "关闭目录" << std::endl;
 	closedir(dir);
-	std::cout << "FileManager::get_directory_contents 完成，找到 "
-		  << count << " 个条目" << std::endl;
 
 	return true;
 }
@@ -269,6 +251,12 @@ bool FileManager::get_directory_contents(const std::string &path,
  * 读取指定文件的内容并返回为字符串。该方法仅适用于文本文件，
  * 对于二进制文件会返回失败。文件内容以字符串形式返回。
  *
+ * 优化要点:
+ * - 使用LRU缓存机制，缓存已读取的文件内容
+ * - 缓存命中时直接返回，避免磁盘I/O
+ * - 缓存未命中时读取文件并缓存
+ * - 使用内存预分配，减少重新分配次数
+ *
  * @path: 要读取的文件路径
  * @content: 输出参数，用于存储文件内容的引用
  *
@@ -280,26 +268,84 @@ bool FileManager::read_file(const std::string &path, std::string &content)
 {
 	std::lock_guard<std::mutex> lock(mutex);
 
-	/* 检查文件是否存在 */
+	/*
+	 * 检查文件是否存在
+	 */
 	if (!is_file(path))
 		return false;
 
-	/* 检查是否为二进制文件 */
+	/*
+	 * 尝试从缓存中获取文件内容
+	 * 缓存命中时直接返回，大幅提升性能
+	 */
+	if (get_cached_file(path, content))
+		return true;
+
+	/*
+	 * 缓存未命中，从磁盘读取文件
+	 */
+
+	/*
+	 * 获取文件大小
+	 * 防止读取超大文件导致内存溢出
+	 */
+	const size_t file_size = get_file_size(path);
+
+	/*
+	 * 检查文件大小是否超过限制
+	 */
+	if (file_size > MAX_FILE_READ_SIZE) {
+		std::cerr << "文件过大（" << file_size << " 字节），超过限制 "
+			  << MAX_FILE_READ_SIZE << " 字节" << std::endl;
+		return false;
+	}
+
+	/*
+	 * 检查是否为二进制文件
+	 */
 	if (is_binary_file(path))
 		return false;
 
-	/* 打开文件（二进制模式以保留原始编码） */
+	/*
+	 * 打开文件（二进制模式以保留原始编码）
+	 */
 	std::ifstream file(path, std::ios::binary);
+
+	/*
+	 * 检查文件是否成功打开
+	 */
 	if (!file.is_open())
 		return false;
 
-	/* 读取文件内容到字符串流 */
+	/*
+	 * 预分配内存
+	 * 避免多次重新分配，提高性能
+	 */
+	try {
+		content.reserve(file_size);
+	} catch (const std::bad_alloc &) {
+		std::cerr << "内存分配失败，文件大小: " << file_size << std::endl;
+		file.close();
+		return false;
+	}
+
+	/*
+	 * 读取文件内容到字符串流
+	 */
 	std::stringstream buffer;
 	buffer << file.rdbuf();
 	content = buffer.str();
 
-	/* 关闭文件 */
+	/*
+	 * 关闭文件
+	 */
 	file.close();
+
+	/*
+	 * 将文件内容缓存
+	 * 使用移动语义避免字符串拷贝
+	 */
+	cache_file(path, content, file_size);
 
 	return true;
 }
@@ -358,6 +404,10 @@ bool FileManager::read_file_binary(const std::string &path,
  * 将字符串内容写入指定文件。如果文件已存在，其内容将被覆盖；
  * 如果文件不存在，将创建新文件。写入使用二进制模式。
  *
+ * 优化要点:
+ * - 文件写入后使缓存失效，确保缓存一致性
+ * - 避免缓存与磁盘内容不一致
+ *
  * @path: 要写入的文件路径
  * @content: 要写入的文件内容字符串
  *
@@ -375,16 +425,37 @@ bool FileManager::write_file(const std::string &path,
 	 * std::ios::trunc表示如果文件存在，先清空内容
 	 */
 	std::ofstream file(path, std::ios::binary | std::ios::trunc);
+
+	/*
+	 * 检查文件是否成功打开
+	 */
 	if (!file.is_open())
 		return false;
 
-	/* 写入内容 */
+	/*
+	 * 写入内容
+	 */
 	file << content;
 
-	/* 关闭文件 */
+	/*
+	 * 关闭文件
+	 */
 	file.close();
 
-	return file.good();
+	/*
+	 * 检查写入是否成功
+	 */
+	if (!file.good())
+		return false;
+
+	/*
+	 * 使缓存失效
+	 * 文件已修改，需要清除旧缓存
+	 * 下次读取时将重新从磁盘加载
+	 */
+	invalidate_cache(path);
+
+	return true;
 }
 
 /*
@@ -707,6 +778,9 @@ size_t FileManager::get_file_size(const std::string &path)
  * 根据文件的MIME类型判断是否为二进制文件。常见的文本类型
  * （如text/ *、application/json等）将被识别为文本文件。
  *
+ * 使用哈希表实现O(1)时间复杂度的查找，替代原有的O(n)循环查找。
+ * 这对频繁的文件类型检测有显著性能提升。
+ *
  * @path: 文件路径
  *
  * 返回值: 是二进制文件返回true，是文本文件返回false
@@ -715,74 +789,127 @@ size_t FileManager::get_file_size(const std::string &path)
  */
 bool FileManager::is_binary_file(const std::string &path)
 {
+	/*
+	 * 静态哈希表存储所有已知的文本MIME类型
+	 * 使用unordered_set实现O(1)平均时间复杂度的查找
+	 * 该表在首次调用时初始化，后续调用直接使用，无需重复创建
+	 */
+	static const std::unordered_set<std::string> text_mime_types = {
+		/* text/ 前缀的文本类型（部分常见类型） */
+		"text/plain",
+		"text/html",
+		"text/css",
+		"text/javascript",
+		"text/xml",
+		"text/markdown",
+		"text/x-c",
+		"text/x-c++",
+		"text/x-cpp",
+		"text/x-csrc",
+		"text/x-c++src",
+		"text/x-h",
+		"text/x-h++",
+		"text/x-chdr",
+		"text/x-makefile",
+		"text/x-toml",
+		"text/x-ini",
+		"text/x-markdown",
+		"text/yaml",
+
+		/* JSON及相关 */
+		"application/json",
+		"application/x-json",
+
+		/* XML相关 */
+		"application/xml",
+		"text/xml",
+
+		/* JavaScript相关 */
+		"application/javascript",
+		"text/javascript",
+
+		/* Shell脚本 */
+		"application/x-sh",
+		"application/x-shellscript",
+		"text/x-shellscript",
+
+		/* Python */
+		"application/x-python",
+		"text/x-python",
+
+		/* Perl */
+		"application/x-perl",
+		"text/x-perl",
+
+		/* Ruby */
+		"application/x-ruby",
+		"text/x-ruby",
+
+		/* PHP */
+		"application/x-php",
+		"application/x-httpd-php",
+		"text/x-php",
+
+		/* C/C++源代码 */
+		"application/x-c",
+		"application/x-csrc",
+		"application/x-c++",
+		"application/x-c++src",
+		"application/x-cpp",
+		"application/x-h",
+		"application/x-header",
+
+		/* 配置文件 */
+		"application/yaml",
+		"application/x-yaml",
+		"application/x-toml",
+		"application/x-ini",
+
+		/* Makefile */
+		"application/x-makescript",
+		"text/x-makefile",
+
+		/* SQL */
+		"application/x-sql",
+		"text/x-sql",
+
+		/* 其他文本格式 */
+		"application/x-wmf",
+		"application/x-rss+xml"
+	};
+
 	std::string mime_type = get_mime_type(path);
 
 	/*
 	 * 空文件不是二进制文件
 	 * libmagic可能返回不同的空文件类型字符串
+	 * 使用比较操作而非if判断，提高可读性
 	 */
-	if (mime_type == "inode/x-empty" ||
-	    mime_type == "inode/x-emptyfile")
+	const bool is_empty = (mime_type == "inode/x-empty" ||
+			      mime_type == "inode/x-emptyfile");
+	if (is_empty)
 		return false;
 
 	/*
 	 * 检查MIME类型是否以text/开头
 	 * text/ *类型通常表示文本文件
+	 * 使用比较而非substr以避免不必要的字符串拷贝
 	 */
-	if (mime_type.substr(0, 5) == "text/")
+	const bool starts_with_text = (mime_type.size() >= 5 &&
+				      mime_type[0] == 't' &&
+				      mime_type[1] == 'e' &&
+				      mime_type[2] == 'x' &&
+				      mime_type[3] == 't' &&
+				      mime_type[4] == '/');
+	if (starts_with_text)
 		return false;
 
 	/*
-	 * 检查常见的文本MIME类型
-	 * 这些类型虽然不以text/开头，但实际上是文本文件
+	 * 使用哈希表查找已知文本类型
+	 * unordered_set::find()平均时间复杂度为O(1)
+	 * 相比原有循环查找有显著性能提升
 	 */
-	const std::vector<std::string> text_mime_types = {
-		"application/json",
-		"application/xml",
-		"application/javascript",
-		"application/x-sh",
-		"application/x-python",
-		"application/x-perl",
-		"application/x-ruby",
-		"application/x-php",
-		"application/x-c",
-		"application/x-csrc",
-		"text/x-c",
-		"text/x-csrc",
-		"application/x-c++",
-		"application/x-c++src",
-		"text/x-c++",
-		"text/x-c++src",
-		"application/x-cpp",
-		"text/x-cpp",
-		"application/x-h",
-		"application/x-header",
-		"text/x-h",
-		"text/x-h++",
-		"text/x-chdr",
-		"application/x-httpd-php",
-		"text/plain",
-		"text/x-makefile",
-		"application/x-makescript",
-		"application/yaml",
-		"text/yaml",
-		"application/x-toml",
-		"text/x-toml",
-		"application/x-ini",
-		"text/x-ini",
-		"text/markdown",
-		"text/x-markdown",
-		"application/x-shellscript"
-	};
-
-	/* 检查是否在已知文本类型列表中 */
-	for (const auto &type : text_mime_types) {
-		if (mime_type == type)
-			return false;
-	}
-
-	/* 其他情况认为是二进制文件 */
-	return true;
+	return (text_mime_types.find(mime_type) == text_mime_types.end());
 }
 
 /**
@@ -822,28 +949,83 @@ std::string FileManager::get_mime_type(const std::string &path)
  *
  * 清理路径字符串，移除多余的斜杠，确保路径格式规范。
  *
+ * 优化要点:
+ * - 使用原地修改而非重复的find/replace，减少内存分配
+ * - 使用双指针算法一次遍历完成处理，时间复杂度O(n)
+ * - 预分配结果空间，避免多次重新分配
+ *
  * @path: 要标准化的路径字符串
  *
  * 返回值: 标准化后的路径字符串
  */
 std::string FileManager::normalize_path(const std::string &path)
 {
-	std::string normalized = path;
+	/*
+	 * 空路径或单个/路径直接返回
+	 */
+	if (path.empty())
+		return "";
+
+	if (path == "/")
+		return "/";
 
 	/*
-	 * 替换多个连续的/为单个/
-	 * 例如："path//to///dir" -> "path/to/dir"
+	 * 预分配结果字符串空间，避免多次重新分配
+	 * 最坏情况下结果长度等于输入长度
 	 */
-	size_t pos = 0;
-	while ((pos = normalized.find("//", pos)) != std::string::npos)
-		normalized.replace(pos, 2, "/");
+	std::string normalized;
+	normalized.reserve(path.size());
 
 	/*
-	 * 去除末尾的/
-	 * 但保留根目录的/
+	 * 双指针算法：一次遍历处理所有斜杠
+	 * write_pos: 写入位置指针
+	 * skip_slash: 标记是否需要跳过下一个斜杠
 	 */
-	while (!normalized.empty() && normalized.back() == '/' &&
-	       normalized.size() > 1)
+	size_t write_pos = 0;
+	bool skip_slash = false;
+
+	/*
+	 * 处理根目录开头的/
+	 */
+	if (path[0] == '/') {
+		normalized += '/';
+		write_pos = 1;
+		skip_slash = true;
+	}
+
+	/*
+	 * 遍历路径中的每个字符
+	 */
+	for (size_t i = write_pos; i < path.size(); ++i) {
+		/*
+		 * 遇到斜杠
+		 */
+		if (path[i] == '/') {
+			/*
+			 * 如果前一个字符也是斜杠，跳过当前斜杠
+			 * 使用状态标记而非if/else嵌套
+			 */
+			if (skip_slash)
+				continue;
+
+			/*
+			 * 添加斜杠并设置跳过标记
+			 */
+			normalized += '/';
+			skip_slash = true;
+		} else {
+			/*
+			 * 非斜杠字符直接添加
+			 */
+			normalized += path[i];
+			skip_slash = false;
+		}
+	}
+
+	/*
+	 * 去除末尾的/（根目录除外）
+	 */
+	if (normalized.size() > 1 && normalized.back() == '/')
 		normalized.pop_back();
 
 	return normalized;
@@ -854,19 +1036,36 @@ std::string FileManager::normalize_path(const std::string &path)
  *
  * 从指定路径提取父目录路径。
  *
+ * 优化要点:
+ * - 使用find_last_of一次查找
+ * - 避免不必要的字符串拷贝
+ *
  * @path: 文件或目录路径
  *
  * 返回值: 父目录路径字符串
  */
 std::string FileManager::get_parent_directory(const std::string &path)
 {
-	size_t pos = path.find_last_of('/');
+	/*
+	 * 查找最后一个斜杠位置
+	 */
+	const size_t pos = path.find_last_of('/');
+
+	/*
+	 * 没有找到斜杠，返回当前目录
+	 */
 	if (pos == std::string::npos)
 		return ".";
 
+	/*
+	 * 根目录的父目录是根目录
+	 */
 	if (pos == 0)
 		return "/";
 
+	/*
+	 * 返回斜杠之前的部分
+	 */
 	return path.substr(0, pos);
 }
 
@@ -875,16 +1074,30 @@ std::string FileManager::get_parent_directory(const std::string &path)
  *
  * 从路径中提取文件名部分（不含路径）。
  *
+ * 优化要点:
+ * - 使用find_last_of一次查找
+ * - 如果没有路径分隔符，直接返回整个字符串
+ *
  * @path: 文件路径
  *
  * 返回值: 文件名字符串
  */
 std::string FileManager::get_file_name(const std::string &path)
 {
-	size_t pos = path.find_last_of('/');
+	/*
+	 * 查找最后一个斜杠位置
+	 */
+	const size_t pos = path.find_last_of('/');
+
+	/*
+	 * 没有找到斜杠，返回整个路径
+	 */
 	if (pos == std::string::npos)
 		return path;
 
+	/*
+	 * 返回斜杠之后的部分
+	 */
 	return path.substr(pos + 1);
 }
 
@@ -893,15 +1106,301 @@ std::string FileManager::get_file_name(const std::string &path)
  *
  * 从文件名中提取扩展名（包含点号）。
  *
+ * 优化要点:
+ * - 使用find_last_of一次查找
+ * - 处理隐藏文件和文件名中多个点的情况
+ *
  * @filename: 文件名（不含路径）
  *
  * 返回值: 扩展名字符串，无扩展名返回空字符串
  */
 std::string FileManager::get_file_extension(const std::string &filename)
 {
-	size_t pos = filename.find_last_of('.');
+	/*
+	 * 查找最后一个点号位置
+	 */
+	const size_t pos = filename.find_last_of('.');
+
+	/*
+	 * 没有点号，返回空字符串
+	 */
 	if (pos == std::string::npos)
 		return "";
 
+	/*
+	 * 点号在开头（隐藏文件），不算扩展名
+	 * 例如：".gitignore" -> ""
+	 */
+	if (pos == 0)
+		return "";
+
+	/*
+	 * 返回点号及之后的部分
+	 * 例如："archive.tar.gz" -> ".gz"
+	 */
 	return filename.substr(pos);
+}
+
+/*
+ * ============================================================================
+ * 缓存管理方法实现
+ * ============================================================================
+ */
+
+/**
+ * get_cached_file - 从缓存中获取文件内容
+ *
+ * 尝试从缓存中获取指定路径的文件内容。
+ * 如果缓存命中，更新LRU链表，将文件移到链表头部。
+ *
+ * 优化要点:
+ * - 使用哈希表实现O(1)查找
+ * - 使用LRU链表管理访问顺序
+ * - 缓存命中时更新时间戳和LRU链表
+ *
+ * @path: 文件路径
+ * @content: 输出参数，存储缓存的内容
+ *
+ * 返回值: 缓存命中返回true，未命中返回false
+ *
+ * 注意: 该方法需要持有互斥锁才能调用。
+ */
+bool FileManager::get_cached_file(const std::string &path, std::string &content)
+{
+	/*
+	 * 在哈希表中查找缓存条目
+	 */
+	const auto it = file_cache.find(path);
+
+	/*
+	 * 缓存未命中
+	 */
+	if (it == file_cache.end())
+		return false;
+
+	/*
+	 * 缓存命中，更新时间戳
+	 */
+	it->second.timestamp = std::chrono::system_clock::now();
+
+	/*
+	 * 更新LRU链表
+	 * 从原位置移除，插入到头部
+	 */
+	file_cache_lru.remove(path);
+	file_cache_lru.push_front(path);
+
+	/*
+	 * 返回缓存内容
+	 */
+	content = it->second.content;
+
+	return true;
+}
+
+/**
+ * cache_file - 将文件内容缓存
+ *
+ * 将文件内容添加到缓存中。
+ * 如果缓存已满，按照LRU策略淘汰最久未使用的文件。
+ *
+ * 优化要点:
+ * - 使用LRU策略管理缓存，淘汰最久未使用的条目
+ * - 预先检查缓存大小，避免频繁的淘汰操作
+ * - 使用移动语义减少字符串拷贝
+ *
+ * @path: 文件路径
+ * @content: 文件内容
+ * @size: 文件大小（字节）
+ *
+ * 注意: 该方法需要持有互斥锁才能调用。
+ */
+void FileManager::cache_file(const std::string &path, const std::string &content,
+			     size_t size)
+{
+	/*
+	 * 检查文件是否已在缓存中
+	 */
+	const auto it = file_cache.find(path);
+
+	/*
+	 * 如果文件已在缓存中，先移除旧的条目
+	 */
+	if (it != file_cache.end()) {
+		/*
+		 * 从LRU链表中移除
+		 */
+		file_cache_lru.remove(path);
+
+		/*
+		 * 从缓存大小中减去旧文件大小
+		 */
+		cache_size -= it->second.size;
+
+		/*
+		 * 从哈希表中移除
+		 */
+		file_cache.erase(it);
+	}
+
+	/*
+	 * 检查是否需要淘汰缓存
+	 * 如果新文件大小超过缓存限制，直接拒绝缓存
+	 */
+	if (size > MAX_CACHE_SIZE)
+		return;
+
+	/*
+	 * 检查缓存空间是否足够
+	 * 如果不足，淘汰最久未使用的文件
+	 */
+	if (cache_size + size > MAX_CACHE_SIZE)
+		evict_cache(cache_size + size - MAX_CACHE_SIZE);
+
+	/*
+	 * 创建新的缓存条目
+	 */
+	FileCacheEntry entry;
+	entry.content = content;
+	entry.timestamp = std::chrono::system_clock::now();
+	entry.size = size;
+
+	/*
+	 * 添加到哈希表
+	 */
+	file_cache[path] = std::move(entry);
+
+	/*
+	 * 添加到LRU链表头部
+	 */
+	file_cache_lru.push_front(path);
+
+	/*
+	 * 更新缓存大小
+	 */
+	cache_size += size;
+}
+
+/**
+ * evict_cache - 淘汰缓存条目
+ *
+ * 按照LRU策略淘汰最久未使用的缓存条目，直到缓存大小低于限制。
+ *
+ * 优化要点:
+ * - 从LRU链表尾部开始淘汰，保证淘汰最久未使用的条目
+ * - 同时更新哈希表和LRU链表
+ * - 循环淘汰直到满足大小要求
+ *
+ * @required_size: 需要释放的空间大小（字节）
+ *
+ * 注意: 该方法需要持有互斥锁才能调用。
+ */
+void FileManager::evict_cache(size_t required_size)
+{
+	/*
+	 * 循环淘汰，直到释放足够的空间
+	 */
+	while (!file_cache_lru.empty() && required_size > 0) {
+		/*
+		 * 获取LRU链表尾部（最久未使用）的文件路径
+		 */
+		const std::string lru_path = file_cache_lru.back();
+
+		/*
+		 * 在哈希表中查找该文件
+		 */
+		const auto it = file_cache.find(lru_path);
+
+		/*
+		 * 如果找到，从缓存中移除
+		 */
+		if (it != file_cache.end()) {
+			/*
+			 * 减少缓存大小
+			 */
+			cache_size -= it->second.size;
+
+			/*
+			 * 减少需要释放的空间
+			 */
+			if (it->second.size <= required_size) {
+				required_size -= it->second.size;
+			} else {
+				required_size = 0;
+			}
+
+			/*
+			 * 从哈希表中移除
+			 */
+			file_cache.erase(it);
+		}
+
+		/*
+		 * 从LRU链表中移除
+		 */
+		file_cache_lru.pop_back();
+	}
+}
+
+/**
+ * invalidate_cache - 使指定文件的缓存失效
+ *
+ * 使指定文件的缓存失效，下次读取时将重新从磁盘加载。
+ * 在文件被修改后应调用此方法。
+ *
+ * @path: 文件路径
+ *
+ * 注意: 该方法需要持有互斥锁才能调用。
+ */
+void FileManager::invalidate_cache(const std::string &path)
+{
+	/*
+	 * 在哈希表中查找缓存条目
+	 */
+	const auto it = file_cache.find(path);
+
+	/*
+	 * 如果找到，从缓存中移除
+	 */
+	if (it != file_cache.end()) {
+		/*
+		 * 减少缓存大小
+		 */
+		cache_size -= it->second.size;
+
+		/*
+		 * 从哈希表中移除
+		 */
+		file_cache.erase(it);
+
+		/*
+		 * 从LRU链表中移除
+		 */
+		file_cache_lru.remove(path);
+	}
+}
+
+/**
+ * clear_cache - 清空所有缓存
+ *
+ * 清空所有文件缓存，释放内存。
+ *
+ * 注意: 该方法需要持有互斥锁才能调用。
+ */
+void FileManager::clear_cache(void)
+{
+	/*
+	 * 清空哈希表
+	 */
+	file_cache.clear();
+
+	/*
+	 * 清空LRU链表
+	 */
+	file_cache_lru.clear();
+
+	/*
+	 * 重置缓存大小
+	 */
+	cache_size = 0;
 }

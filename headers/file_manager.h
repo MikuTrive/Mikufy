@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Mikufy v2.4(stable) - 文件管理器头文件
+ * Mikufy v2.5(stable) - 文件管理器头文件
  *
  * 本文件定义了FileManager类的接口，该类负责处理所有与文件系统
  * 相关的操作。FileManager提供了一组统一的API来执行文件的读取、
@@ -33,6 +32,10 @@
 #include "main.h"		/* 全局定义和数据结构 */
 #include <fstream>		/* std::ifstream, std::ofstream 文件流 */
 #include <sstream>		/* std::stringstream 字符串流 */
+#include <unordered_set>	/* std::unordered_set 哈希集合 */
+#include <unordered_map>	/* std::unordered_map 哈希映射 */
+#include <list>			/* std::list 双向链表 */
+#include <chrono>		/* std::chrono 时间库 */
 
 /*
  * ============================================================================
@@ -433,6 +436,20 @@ private:
 	magic_t magic_cookie;	/* libmagic句柄，用于文件类型检测 */
 	std::mutex mutex;	/* 互斥锁，保证线程安全 */
 
+	/*
+	 * 文件内容缓存相关
+	 * 使用LRU（最近最少使用）缓存策略，提升重复读取同一文件的性能
+	 */
+	struct FileCacheEntry {
+		std::string content;		/* 文件内容 */
+		std::chrono::system_clock::time_point timestamp;	/* 缓存时间戳 */
+		size_t size;			/* 文件大小（字节） */
+	};
+
+	std::unordered_map<std::string, FileCacheEntry> file_cache;	/* 文件缓存哈希表 */
+	std::list<std::string> file_cache_lru;	/* LRU链表，记录访问顺序 */
+	size_t cache_size;		/* 当前缓存大小（字节） */
+
 	/* ====================================================================
 	 * 私有方法 - libmagic管理
 	 * ==================================================================== */
@@ -457,6 +474,72 @@ private:
 	 * 注意: 该方法需要持有互斥锁才能调用。
 	 */
 	void cleanup_magic(void);
+
+	/* ====================================================================
+	 * 私有方法 - 缓存管理
+	 * ==================================================================== */
+
+	/**
+	 * get_cached_file - 从缓存中获取文件内容
+	 *
+	 * 尝试从缓存中获取指定路径的文件内容。
+	 * 如果缓存命中，更新LRU链表，将文件移到链表头部。
+	 *
+	 * @path: 文件路径
+	 * @content: 输出参数，存储缓存的内容
+	 *
+	 * 返回值: 缓存命中返回true，未命中返回false
+	 *
+	 * 注意: 该方法需要持有互斥锁才能调用。
+	 */
+	bool get_cached_file(const std::string &path, std::string &content);
+
+	/**
+	 * cache_file - 将文件内容缓存
+	 *
+	 * 将文件内容添加到缓存中。
+	 * 如果缓存已满，按照LRU策略淘汰最久未使用的文件。
+	 *
+	 * @path: 文件路径
+	 * @content: 文件内容
+	 * @size: 文件大小（字节）
+	 *
+	 * 注意: 该方法需要持有互斥锁才能调用。
+	 */
+	void cache_file(const std::string &path, const std::string &content,
+			size_t size);
+
+	/**
+	 * evict_cache - 淘汰缓存条目
+	 *
+	 * 按照LRU策略淘汰最久未使用的缓存条目，直到缓存大小低于限制。
+	 *
+	 * @required_size: 需要释放的空间大小（字节）
+	 *
+	 * 注意: 该方法需要持有互斥锁才能调用。
+	 */
+	void evict_cache(size_t required_size);
+
+	/**
+	 * invalidate_cache - 使指定文件的缓存失效
+	 *
+	 * 使指定文件的缓存失效，下次读取时将重新从磁盘加载。
+	 * 在文件被修改后应调用此方法。
+	 *
+	 * @path: 文件路径
+	 *
+	 * 注意: 该方法需要持有互斥锁才能调用。
+	 */
+	void invalidate_cache(const std::string &path);
+
+	/**
+	 * clear_cache - 清空所有缓存
+	 *
+	 * 清空所有文件缓存，释放内存。
+	 *
+	 * 注意: 该方法需要持有互斥锁才能调用。
+	 */
+	void clear_cache(void);
 };
 
 #endif /* MIKUFY_FILE_MANAGER_H */

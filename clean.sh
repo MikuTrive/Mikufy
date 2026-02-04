@@ -1,5 +1,9 @@
 #
+<<<<<<< Updated upstream
 # Mikufy v2.4(stable) - 一键清理脚本
+=======
+# Mikufy v2.5(stable) - 一键清理脚本
+>>>>>>> Stashed changes
 # 清理编译构建产生的产物
 #
 
@@ -12,7 +16,11 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
+<<<<<<< Updated upstream
 VERSION="2.4(stable)"
+=======
+VERSION="2.5(stable)"
+>>>>>>> Stashed changes
 OUTPUT_FILE="mikufy"
 
 # 打印函数

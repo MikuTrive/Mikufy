@@ -1,10 +1,10 @@
-# # Mikufy v2.4(stable)
+# # Mikufy v2.5(stable)
 # 作者 luozenan
 
 [Desktop Entry]
 Type=Application
 Name=mikufy
-Comment=Mikufy v2.4
+Comment=Mikufy v2.5
 Exec=mikufy
 Icon=mikufy
 Terminal=false

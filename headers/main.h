@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Mikufy v2.4(stable) - 主头文件
+ * Mikufy v2.5(stable) - 主头文件
  *
  * 这是Mikufy代码编辑器的主头文件，包含所有必要的头文件包含、
  * 全局常量定义、数据结构声明和类型定义。该文件作为整个项目
@@ -29,6 +28,8 @@
 #include <string>		/* std::string 字符串类型 */
 #include <vector>		/* std::vector 动态数组 */
 #include <map>			/* std::map 关联容器 */
+#include <unordered_map>	/* std::unordered_map 哈希映射容器 */
+#include <unordered_set>	/* std::unordered_set 哈希集合容器 */
 #include <memory>		/* std::unique_ptr 智能指针 */
 #include <functional>		/* std::function 函数对象 */
 #include <thread>		/* std::thread 线程支持 */
@@ -94,7 +95,7 @@ using json = nlohmann::json;
 #define MIKUFY_NAME		"Mikufy"
 
 /* 当前版本号 */
-#define MIKUFY_VERSION		"2.4(stable)"
+#define MIKUFY_VERSION		"2.5(stable)"
 
 /*
  * ============================================================================
@@ -109,7 +110,7 @@ using json = nlohmann::json;
 #define WINDOW_HEIGHT		900
 
 /* 窗口标题文本 */
-#define WINDOW_TITLE		"Mikufy v2.4(stable) - 代码编辑器"
+#define WINDOW_TITLE		"Mikufy v2.5(stable) - 代码编辑器"
 
 /*
  * ============================================================================
@@ -128,6 +129,12 @@ using json = nlohmann::json;
 
 /* 缓存大小限制（字节），约100MB */
 #define MAX_CACHE_SIZE		104857600
+
+/* 文件读取大小限制（字节），约50MB，防止内存溢出 */
+#define MAX_FILE_READ_SIZE	52428800
+
+/* 目录内容读取限制（条目数），防止大目录导致性能问题 */
+#define MAX_DIR_ENTRIES		2000
 
 /*
  * ============================================================================

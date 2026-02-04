@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Mikufy v2.4(stable) - Web服务器头文件
+ * Mikufy v2.5(stable) - Web服务器头文件
  *
  * 本文件定义了WebServer类的接口，该类负责提供HTTP服务和
  * 处理前端请求。WebServer实现了完整的HTTP/1.1服务器功能，
@@ -465,6 +464,93 @@ private:
 			const std::map<std::string, std::string> &headers,
 			const std::string &body);
 
+	/**
+	 * handle_get_wallpapers - 处理获取壁纸列表API
+	 *
+	 * 获取所有可用的壁纸文件列表。
+	 */
+	HttpResponse handle_get_wallpapers(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_highlight_code - 处理代码语法高亮API
+	 *
+	 * 对代码进行语法高亮处理，返回高亮后的 HTML。
+	 */
+	HttpResponse handle_highlight_code(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_render_file - 处理渲染文件API
+	 *
+	 * 读取文件内容并进行完整的语法高亮渲染，返回所有行的HTML。
+	 * 此API用于前端直接显示整个文件，无需前端处理虚拟滚动。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含path字段
+	 *
+	 * 返回: JSON响应，包含success、html、language和totalLines字段
+	 */
+	HttpResponse handle_render_file(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_highlight_range - 处理增量语法高亮API
+	 *
+	 * 对指定行范围的代码进行语法高亮，用于虚拟滚动场景。
+	 * 只返回可见区域的高亮结果，大幅减少数据传输量。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含path、start_line、end_line字段
+	 *
+	 * 返回: JSON响应，包含success、lines、language字段
+	 */
+	HttpResponse handle_highlight_range(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_render_file_instant - 处理立即渲染API
+	 *
+	 * 只高亮首屏内容立即返回，剩余部分在后台处理。
+	 * 实现零延迟的文件打开体验。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含path、first_screen_lines字段
+	 *
+	 * 返回: JSON响应，包含success、lines、totalLines、language、has_more字段
+	 */
+	HttpResponse handle_render_file_instant(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_get_remaining_highlight - 获取剩余高亮结果API
+	 *
+	 * 获取立即渲染后的剩余部分高亮结果。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含path、start_line字段
+	 *
+	 * 返回: JSON响应，包含success、lines、startLine字段
+	 */
+	HttpResponse handle_get_remaining_highlight(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
 	/* ====================================================================
 	 * 私有方法 - 静态文件服务
 	 * ==================================================================== */
@@ -502,6 +588,43 @@ private:
 	 * 返回值: MIME类型字符串
 	 */
 	std::string get_http_mime_type(const std::string &file_path);
+
+	/* ====================================================================
+	 * 私有方法 - 辅助函数
+	 * ==================================================================== */
+
+	/**
+	 * escape_html - 转义 HTML 特殊字符
+	 *
+	 * 将文本中的 HTML 特殊字符转义为实体引用。
+	 *
+	 * @text: 要转义的文本
+	 *
+	 * 返回值: 转义后的文本
+	 */
+	std::string escape_html(const std::string &text);
+
+	/**
+	 * detect_language_simple - 简化的语言检测函数
+	 *
+	 * 根据文件扩展名检测编程语言。
+	 *
+	 * @filename: 文件名
+	 *
+	 * 返回值: 检测到的语言名称
+	 */
+	std::string detect_language_simple(const std::string &filename);
+
+	/**
+	 * highlight_code_simple - 简化的代码高亮函数（仅转义 HTML）
+	 *
+	 * 将代码内容转换为 HTML，仅进行 HTML 转义，不进行语法高亮。
+	 *
+	 * @code: 要处理的代码内容
+	 *
+	 * 返回值: 转义后的 HTML
+	 */
+	std::string highlight_code_simple(const std::string &code);
 };
 
 #endif /* MIKUFY_WEB_SERVER_H */

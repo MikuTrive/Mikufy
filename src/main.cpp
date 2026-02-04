@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
- * Mikufy v2.4(stable) - 主程序入口
+ * Mikufy v2.5(stable) - 主程序入口
  *
  * 这是Mikufy代码编辑器的主程序文件，包含应用程序的入口点main()函数。
  * 该文件负责：
@@ -105,7 +104,7 @@ static void signal_handler(int signal)
 static void print_welcome(void)
 {
 	std::cout << "========================================" << std::endl;
-	std::cout << "  Mikufy v2.4(stable) - Code Editor" << std::endl;
+	std::cout << "  Mikufy v2.5(stable) - Code Editor" << std::endl;
 	std::cout << "========================================" << std::endl;
 }
 

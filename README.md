@@ -1,18 +1,18 @@
-# Mikufy v2.4(stable) - 代码编辑器
+# Mikufy v2.5(stable) - 代码编辑器
 
 ## 🙏 致谢贡献者
 
 特别感谢 **luozenan** 对本项目的贡献！
 
-- Mikufy 第一个稳定版本发布 为 v2.2
-- 我们目前将只提供 `Fedora43/ArchLinux/NixOS`支持的Mikufy(不同发行版依赖包版本不依)
+- 我们目前将提供`Debian13` `Fedora43` `ArchLinux` `NixOS`支持的Mikufy
+- 当前其他大部分`Debian系、Fedora系、ArchLinux系`的其他衍生版应也支持。
 - 如果您仍愿意使用可切换到v2.1分支也就是sid版的mikufy还有未完成的功能bug需修复
-- 此v2.4(stable)为完整的稳定版发布(可联系我们合作开发贡献)
+- 此v2.5(stable)为完整的稳定版发布(可联系我们合作开发贡献)
 
 ## 📋 版本更新说明
 
 
-### v2.4(stable)
+### v2.5(stable)
 
 **重大更新：代码规范化重构**
 
@@ -33,20 +33,19 @@
 
 ### 快捷键列表
     快捷键
-```
-|---------------------|----------------------------|
-|   `Ctrl+S`          | 保存所有文件                 |
-|   `F5`              | 刷新编辑器内容               |
-|   `Ctrl+O`          | 打开文件夹                   |
-|   `Ctrl+F`          | 新建文件夹                   |
-|   `Ctrl+N`          | 新建文件                    |
-|   `Tab`             | 自动缩进(4格)               |
-|   `F11`             | 全屏                       |
-|   `Ctrl+方向左键`    | 快捷切换至左侧的标签页        |
-|   `Ctrl+方向右键`    | 快捷切换至右侧的标签页        |
-|   `Ctrl+M`          | 删除当前所在标签页(不删除内容) |
-|--------------------------------------------------|
-```
+    
+| 包名 | 用途 |
+|------|---------|
+| `Ctrl+S` | 保存所有文件 |
+| `F5` | 刷新编辑器内容 |
+| `Ctrl+O` | 打开工作目录 |
+| `Ctrl+F` | 新建子目录 |
+| `Ctrl+N` | 新建子文件 |
+| `Tab` | 编辑区域自动缩进(4格) |
+| `F11` | 切换全屏/窗口化 |
+| `Ctrl+方向左键` | 快捷切换左侧标签页 |
+| `Ctrl+方向右键` | 快捷切换右侧标签页 |
+| `Ctrl+M` | 删除当前所在标签页(不删除内容) |
 
 
 ## 项目结构
@@ -95,16 +94,15 @@
 
 #### 1. 文件头部注释
 
-每个源文件必须以SPDX许可证标识开头，后跟详细的文件说明：
+每个源文件必须后跟详细的文件说明：
 
 ```c
-// SPDX-License-Identifier: GPL-2.0
 /*
  * 文件名 - 简要描述
  *
  * 详细说明文件的功能、设计思路和主要组件。
  *
- * Copyright (C) 2024 MiraTrive/MikuTrive
+ * MiraTrive/MikuTrive
  * Author: [Your Name]
  *
  * 本文件遵循Linux内核代码风格规范
@@ -139,7 +137,7 @@ Mikufy/
 - **常量**：全大写，下划线分隔
   ```c
   #define MAX_SIZE  100
-  #define VERSION  "2.2"
+  #define VERSION  "2.5"
   ```
 
 - **变量和函数**：小写，下划线分隔
@@ -196,7 +194,7 @@ int function_name(int param1, char *param2)
  * 文件名 - 简要描述
  *
  * 详细说明文件的功能和设计。
- * Copyright (C) 2024 MiraTrive/MikuTrive
+ * MiraTrive/MikuTrive
  */
 ```
 
@@ -229,7 +227,7 @@ function functionName(paramName) {
  * 文件名 - 简要描述
  *
  * 设计原则和配色方案说明
- * Copyright (C) 2024 MiraTrive/MikuTrive
+ * MiraTrive/MikuTrive
  */
 ```
 
@@ -256,7 +254,7 @@ function functionName(paramName) {
 
 ---
 
-## 📦 Fedora43/ArchLinux 依赖安装说明
+## 📦 Fedora43、ArchLinux、Debian13、NixOS 依赖安装说明
 
 本版本为Fedora43性能优化更换，依赖以下库和工具。
 
@@ -283,7 +281,7 @@ function functionName(paramName) {
 
 ### 安装命令
 
-Fedora43 使用以下命令安装所有依赖：
+Fedora43 (其他Fedora系)使用以下命令安装所有依赖：
 
 ```bash
 # 更新系统
@@ -320,6 +318,41 @@ sudo pacman -S file
 
 # 安装JSON处理库
 sudo pacman -S nlohmann-json
+```
+
+
+Debian13 (其他Debian系)使用以下命令安装所有依赖:
+
+```bash
+# 更新系统
+sudo apt update && sudo apt upgrade
+
+# 安装编译工具
+sudo apt install pkg-config g++
+
+# 安装GTK4和WebKitGTK6.0
+sudo apt install libwebkitgtk-6.0-dev libgtk-4-dev libglib2.0-dev
+
+# 安装文件类型检测库
+sudo apt install file libmagic-dev
+
+# 安装JSON处理库
+sudo apt install nlohmann-json3-dev
+```
+
+### NIXOS
+
+```nix
+inputs = {
+  mikufy-github = {
+    url = "github:MikuTrive/Mikufy";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+};
+
+environment.systemPackages = [
+  inputs.mikufy-github.packages.${pkgs.stdenv.hostPlatform.system}.mikufy
+]
 ```
 
 
@@ -370,7 +403,8 @@ Mikufy/
 │   │   ├── index-3.png
 │   │   ├── index-4.png
 │   │   ├── index-5.png
-│   │   └── index-6.png
+│   │   ├── index-6.png
+│   │   └── index-*.png
 │   └── Icons/            # 图标资源目录（SVG格式）
 │       ├── AI-24.svg
 │       ├── C-24.svg
@@ -397,7 +431,7 @@ Mikufy/
 ├── package.nix           # nixos构建配方
 ├── LICENSE               # GPL-3.0许可证
 ├── mikufy.desktop        # nixos桌面程序
-├── install.sh            # Fedora43/ArchLinux用户的桌面应用程序安装脚本
+├── install.sh            # 适用于所有Linux发行版用户的桌面应用程序安装脚本
 └── README.md             # 本文件
 ```
 
@@ -433,11 +467,17 @@ Mikufy/
 ./build.sh
 ```
 
-编译选项：
-- `-h, --help`：显示帮助信息
-- `-c, --clean`：清理编译产物
-- `-r, --release`：发布模式编译（优化）
-- `-d, --debug`：调试模式编译（包含调试信息）
+编译脚本详情:
+```bash
+mira@MIKU:~/Devel/Mikufy$ ./build.sh -h
+用法: ./build.sh [选项]
+
+选项:
+  -h, --help     显示帮助信息
+  -c, --clean    清理编译产物
+  -r, --release  发布模式编译-优化
+  -d, --debug    调试模式编译-包含调试信息
+```
 
 ### 运行程序
 
@@ -446,10 +486,17 @@ Mikufy/
 ./mikufy
 ```
 
-命令行选项：
-- `-h, --help`：显示帮助信息
-- `-v, --version`：显示版本信息
-- `-p, --port`：指定Web服务器端口（默认8080）
+命令行选项:
+```bash
+mira@MIKU:~/Devel/Mikufy$ ./mikufy -h
+用法: ./mikufy [选项]
+
+选项:
+  -h, --help     显示帮助信息
+  -v, --version  显示版本信息
+  -p, --port     指定Web服务器端口-默认: 8080
+
+```
 
 ### 清理编译产物
 
@@ -459,7 +506,13 @@ Mikufy/
 ```
 
 
-
+# 手动编译
+这是对于那些需要像LFS、Gentoo等不在支持的包管理器包含或没有包管理器
+需先去手动安装或手动从源代码编译安装
+然后再执行以下命令
+```bash
+mira@MIKU:~/Devel/Mikufy$ g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -I/usr/include/webkitgtk-6.0 -I/usr/include/libsoup-3.0 -I/usr/include/gtk-4.0 -I/usr/include/pango-1.0 -I/usr/include/fribidi -I/usr/include/harfbuzz -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/glycin-2 -I/usr/include/cairo -I/usr/include/libxml2 -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/pixman-1 -I/usr/include/graphene-1.0 -I/usr/lib64/graphene-1.0/include -mfpmath=sse -msse -msse2 -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -DWITH_GZFILEOP -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/sysprof-6 -pthread  -Iheaders src/main.cpp src/file_manager.cpp src/web_server.cpp src/window_manager.cpp -o mikufy -lwebkitgtk-6.0 -lsoup-3.0 -lgmodule-2.0 -pthread -ljavascriptcoregtk-6.0 -lgtk-4 -lpangocairo-1.0 -lpango-1.0 -lharfbuzz -lgdk_pixbuf-2.0 -lcairo-gobject -lcairo -lvulkan -lgraphene-1.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lmagic
+```
 
 
 ## 📝 许可证
@@ -479,7 +532,7 @@ Mikufy/
 
 ---
 
-**Mikufy v2.4(stable)** - 让代码编辑更简单
+**Mikufy v2.5(stable)** - 让代码编辑更简单
 
     MiraTrive/MikuTrive*
 贡献者 - luozenan
