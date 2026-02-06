@@ -1,21 +1,9 @@
-<<<<<<< Updated upstream
-#
-# Mikufy v2.5(stable) - 一键编译脚本
-# 编译整个项目为单个可执行文件
-# 通过检测包管理器支持任意发行版（dnf、apt、pacman 等）
-#
-=======
 #!/bin/bash
->>>>>>> Stashed changes
 
 # Mikufy v2.7-nova
 
 PROJECT_NAME="Mikufy"
-<<<<<<< Updated upstream
-VERSION="2.5(stable)"
-=======
 VERSION="v2.7-nova"
->>>>>>> Stashed changes
 OUTPUT_FILE="mikufy"
 BUILD_DIR="build"
 DEBUG_DIR="debug"
