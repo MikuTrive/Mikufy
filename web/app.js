@@ -1,5 +1,5 @@
 /**
- * Mikufy v2.5(stable) - 代码编辑器前端JavaScript
+ * Mikufy v2.7-nova - 代码编辑器前端JavaScript
  *
  * 本文件处理所有前端交互逻辑，通过C++后端API与系统交互
  *
@@ -18,7 +18,7 @@
  *   - 函数模块：按功能划分的函数集合
  *
  * 作者：MikuTrive
- * 版本：v2.5(stable)
+ * 版本：v2.7-nova
  * 许可证：详见 LICENSE 文件
  */
 
@@ -144,9 +144,6 @@ const AppState = {
         '.deb': 'DEB-24.svg',
         '.img': 'Kernel-24.svg'
     },
-    // 语法高亮缓存（Map类型，用于性能优化）
-    // 键：文件路径，值：高亮后的 HTML
-    highlightCache: new Map(),
     // 渲染结果缓存（Map类型，用于存储已渲染的 HTML）
     // 键：文件路径，值：{ lines: Array<string>, totalLines: number }
     renderCache: new Map(),
@@ -543,132 +540,6 @@ const BackendAPI = {
      *     console.log(result.html);
      * }
      */
-    /**
-     * 渲染文件（完整渲染，包含语法高亮）
-     *
-     * 调用后端API读取文件内容并进行完整的语法高亮渲染。
-     * 返回所有行的HTML，前端直接显示，无需虚拟滚动。
-     *
-     * @async
-     * @param {string} path 要渲染的文件路径（绝对路径）
-     * @returns {Promise<Object>} 渲染结果对象
-     */
-    async renderFile(path) {
-        try {
-            const response = await fetch('/api/render-file', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ path })
-            });
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('渲染文件失败:', error);
-            return { success: false, error: error.message };
-        }
-    },
-
-    async highlightCode(code, language = '', filename = '') {
-        try {
-            const response = await fetch('/api/highlight-code', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ code, language, filename })
-            });
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('语法高亮失败:', error);
-            return { success: false, html: code, language };
-        }
-    },
-
-    /**
-     * 立即渲染文件（首屏优先，零延迟）
-     */
-    async renderFileInstant(path, firstScreenLines = 50) {
-        try {
-            const response = await fetch('/api/render-file-instant', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    path,
-                    first_screen_lines: firstScreenLines
-                })
-            });
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('立即渲染文件失败:', error);
-            return { success: false, error: error.message };
-        }
-    },
-
-    /**
-     * 获取剩余高亮结果
-     */
-    async getRemainingHighlight(path, startLine) {
-        try {
-            const response = await fetch('/api/get-remaining-highlight', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    path,
-                    start_line: startLine
-                })
-            });
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('获取剩余高亮失败:', error);
-            return { success: false, error: error.message };
-        }
-    },
-
-    /**
-     * 增量语法高亮（用于虚拟滚动）
-     *
-     * 对指定行范围的代码进行语法高亮，只返回可见区域的高亮结果。
-     * 大幅减少数据传输量，提升大文件渲染性能。
-     *
-     * @async
-     * @param {string} path 文件路径
-     * @param {number} startLine 起始行号（从0开始）
-     * @param {number} endLine 结束行号（不包含）
-     * @returns {Promise<Object>} 高亮结果对象，包含：
-     *   - success {boolean}: 是否成功
-     *   - lines {Array<string>}: 高亮后的HTML行数组
-     *   - language {string}: 使用的语言
-     * @throws {Error} 网络请求失败时抛出错误
-     */
-    async highlightRange(path, startLine, endLine) {
-        try {
-            const response = await fetch('/api/highlight-range', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    path,
-                    start_line: startLine,
-                    end_line: endLine
-                })
-            });
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('增量语法高亮失败:', error);
-            return { success: false, lines: [] };
-        }
-    }
     };
 // ============================================================================
 // DOM元素引用缓存
@@ -1112,6 +983,28 @@ async function activateTab(index) {
             DOM.lineNumbers.style.opacity = '0.5';
             DOM.codeEditor.contentEditable = 'true';
 
+            // 清理之前的虚拟滚动状态和事件监听器
+            if (DOM.codeEditor._virtualScrollHandler) {
+                DOM.codeEditor.removeEventListener('scroll', DOM.codeEditor._virtualScrollHandler);
+                DOM.codeEditor._virtualScrollHandler = null;
+            }
+            if (DOM.codeEditor._lastStartLine !== undefined) {
+                delete DOM.codeEditor._lastStartLine;
+            }
+            if (DOM.codeEditor._lastEndLine !== undefined) {
+                delete DOM.codeEditor._lastEndLine;
+            }
+
+            // 清理防抖定时器
+            if (DOM.codeEditor._scrollDebounceTimer) {
+                clearTimeout(DOM.codeEditor._scrollDebounceTimer);
+                DOM.codeEditor._scrollDebounceTimer = null;
+            }
+            if (DOM.codeEditor._inputDebounceTimer) {
+                clearTimeout(DOM.codeEditor._inputDebounceTimer);
+                DOM.codeEditor._inputDebounceTimer = null;
+            }
+
             // 使用语言信息和原始内容
             const language = tab.language || '';
             const content = tab.rawContent || tab.content || '';
@@ -1139,6 +1032,15 @@ async function activateTab(index) {
                 if (tab.scrollTop !== undefined) {
                     DOM.codeEditor.scrollTop = tab.scrollTop;
                 }
+
+                // 确保行号正确显示（重要：解决切换标签页后行号不显示的问题）
+                // 使用 requestAnimationFrame 确保在 DOM 更新后执行
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        updateLineNumbers(content);
+                        console.log('[activateTab] 已确保行号更新');
+                    });
+                });
 
                 // 调试：检查渲染后的 opacity 值
                 console.log('[activateTab] 渲染后 DOM.lineNumbers.style.opacity:', DOM.lineNumbers.style.opacity);
@@ -1223,12 +1125,6 @@ async function showCodeContent(content, language = '') {
         DOM.codeEditor._inputDebounceTimer = null;
     }
 
-    // 移除之前的语法高亮定时器
-    if (DOM.codeEditor._highlightTimer) {
-        clearTimeout(DOM.codeEditor._highlightTimer);
-        DOM.codeEditor._highlightTimer = null;
-    }
-
     if (content) {
         // 获取当前标签页，存储原始内容和语言
         const currentTab = AppState.openTabs[AppState.activeTab];
@@ -1270,8 +1166,14 @@ async function showCodeContent(content, language = '') {
  * @param {Object} tab 当前标签页
  */
 function renderFullContent(lines, totalLines, language, tab) {
-    // 清空编辑器内容（重要：防止旧内容残留）
+    // 清空编辑器和行号内容（重要：防止旧内容残留）
     DOM.codeEditor.innerHTML = '';
+    DOM.lineNumbers.innerHTML = '';
+    
+    // 重置滚动位置
+    DOM.codeEditor.scrollTop = 0;
+    DOM.codeEditor._lastStartLine = 0;
+    DOM.codeEditor._lastEndLine = 0;
 
     // 使用 DocumentFragment 批量添加 DOM 元素
     const fragment = document.createDocumentFragment();
@@ -1292,7 +1194,7 @@ function renderFullContent(lines, totalLines, language, tab) {
     // 添加第一批内容
     DOM.codeEditor.appendChild(fragment);
 
-    // 立即更新行号
+    // 立即更新行号（使用统一的行号更新函数）
     updateLineNumbersOptimized(totalLines);
 
     // 分批渲染剩余的行
@@ -1303,7 +1205,11 @@ function renderFullContent(lines, totalLines, language, tab) {
             const endIndex = Math.min(currentIndex + BATCH_SIZE, totalLines);
 
             if (currentIndex >= totalLines) {
-                return; // 渲染完成
+                // 渲染完成，确保行号正确
+                requestAnimationFrame(() => {
+                    updateLineNumbers(lines.join('\n'));
+                });
+                return;
             }
 
             const batchFragment = document.createDocumentFragment();
@@ -1326,6 +1232,11 @@ function renderFullContent(lines, totalLines, language, tab) {
         }
 
         setTimeout(renderNextBatch, 0);
+    } else {
+        // 没有分批渲染，确保行号正确
+        requestAnimationFrame(() => {
+            updateLineNumbers(lines.join('\n'));
+        });
     }
 
     // 纯文本模式，不进行语法高亮
@@ -1340,8 +1251,20 @@ function renderFullContent(lines, totalLines, language, tab) {
  * @param {Object} tab 当前标签页
  */
 function renderVirtualScroll(lines, totalLines, language, tab) {
-    // 清空编辑器内容（重要：防止旧内容残留）
+    // 移除旧的事件监听器
+    if (DOM.codeEditor._virtualScrollHandler) {
+        DOM.codeEditor.removeEventListener('scroll', DOM.codeEditor._virtualScrollHandler);
+        DOM.codeEditor._virtualScrollHandler = null;
+    }
+
+    // 清空编辑器和行号内容（重要：防止旧内容残留）
     DOM.codeEditor.innerHTML = '';
+    DOM.lineNumbers.innerHTML = '';
+    
+    // 重置滚动位置
+    DOM.codeEditor.scrollTop = 0;
+    DOM.codeEditor._lastStartLine = 0;
+    DOM.codeEditor._lastEndLine = 0;
 
     const lineHeight = 21;
     const bufferLines = 10;
@@ -1351,7 +1274,6 @@ function renderVirtualScroll(lines, totalLines, language, tab) {
     const endLine = Math.min(visibleLines, totalLines);
 
     tab.isVirtualScroll = true;
-    tab.highlightCache = new Map();
 
     renderVisibleRangeWithHighlight(lines, startLine, endLine, totalLines, lineHeight, language, tab);
     updateLineNumbersForVirtualScroll(startLine, endLine, totalLines);
@@ -1389,6 +1311,9 @@ function renderVirtualScroll(lines, totalLines, language, tab) {
  * @param {Object} tab 当前标签页
  */
 function renderVisibleRangeWithHighlight(lines, startLine, endLine, totalLines, lineHeight, language, tab) {
+    // 清空编辑器内容（重要：防止旧内容残留）
+    DOM.codeEditor.innerHTML = '';
+    
     const fragment = document.createDocumentFragment();
 
     if (startLine > 0) {
@@ -1407,7 +1332,6 @@ function renderVisibleRangeWithHighlight(lines, startLine, endLine, totalLines, 
         fragment.appendChild(bottomPlaceholder);
     }
 
-    DOM.codeEditor.innerHTML = '';
     DOM.codeEditor.appendChild(fragment);
 }
 
@@ -1439,27 +1363,51 @@ async function renderLinesWithHighlight(lines, startLine, endLine, fragment, lan
 function updateLineNumbersOptimized(totalLines) {
     console.log('[updateLineNumbersOptimized] 更新行号，总行数:', totalLines);
 
-    // 使用数组构建行号 HTML，减少字符串拼接操作
-    const lineNumbers = [];
-    for (let i = 1; i <= totalLines; i++) {
-        lineNumbers.push(`<div class="line-number">${i}</div>`);
+    // 分批渲染行号，避免一次性生成太多HTML导致浏览器崩溃
+    const BATCH_SIZE = 500;
+    const firstBatchSize = Math.min(BATCH_SIZE, totalLines);
+
+    // 先清空行号区域
+    DOM.lineNumbers.innerHTML = '';
+
+    // 渲染第一批行号
+    const fragment = document.createDocumentFragment();
+    for (let i = 1; i <= firstBatchSize; i++) {
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'line-number';
+        lineDiv.textContent = i;
+        fragment.appendChild(lineDiv);
     }
-    DOM.lineNumbers.innerHTML = lineNumbers.join('');
+    DOM.lineNumbers.appendChild(fragment);
 
-    console.log('[updateLineNumbersOptimized] 行号 HTML 长度:', lineNumbers.length);
-    console.log('[updateLineNumbersOptimized] DOM.lineNumbers.innerHTML 长度:', DOM.lineNumbers.innerHTML.length);
+    // 分批渲染剩余行号
+    if (totalLines > BATCH_SIZE) {
+        let currentIndex = BATCH_SIZE + 1;
 
-    // 调试：检查行号元素
-    if (totalLines > 0) {
-        console.log('[updateLineNumbersOptimized] DOM.lineNumbers 元素检查:');
-        console.log('  元素存在:', !!DOM.lineNumbers);
-        console.log('  子元素数量:', DOM.lineNumbers.childElementCount);
-        console.log('  offsetWidth:', DOM.lineNumbers.offsetWidth);
-        console.log('  offsetHeight:', DOM.lineNumbers.offsetHeight);
-        console.log('  computedStyle.color:', window.getComputedStyle(DOM.lineNumbers).color);
-        console.log('  computedStyle.display:', window.getComputedStyle(DOM.lineNumbers).display);
-        console.log('  computedStyle.visibility:', window.getComputedStyle(DOM.lineNumbers).visibility);
-        console.log('  computedStyle.opacity:', window.getComputedStyle(DOM.lineNumbers).opacity);
+        function renderNextBatch() {
+            const endIndex = Math.min(currentIndex + BATCH_SIZE, totalLines);
+
+            if (currentIndex > totalLines) {
+                return; // 渲染完成
+            }
+
+            const batchFragment = document.createDocumentFragment();
+            for (let i = currentIndex; i <= endIndex; i++) {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'line-number';
+                lineDiv.textContent = i;
+                batchFragment.appendChild(lineDiv);
+            }
+            DOM.lineNumbers.appendChild(batchFragment);
+
+            currentIndex = endIndex + 1;
+
+            // 继续渲染下一批
+            requestAnimationFrame(renderNextBatch);
+        }
+
+        // 开始渲染剩余批次
+        requestAnimationFrame(renderNextBatch);
     }
 }
 
@@ -1765,17 +1713,16 @@ window.playAudio = function(path) {
  * 计算编辑器中的行数并更新行号显示。
  * 如果使用虚拟滚动，从标签页数据获取总行数；否则通过分析DOM结构统计。
  *
- * @content: 代码内容（参数保留但不使用，直接分析DOM结构或标签页数据）
+ * @content: 代码内容（可选参数，如果提供则直接使用其计算行数）
  *
- * 注意: 如果当前标签页有虚拟滚动的数据（lines数组），使用虚拟滚动行号显示；
- *       否则由于showCodeContent为每行创建一个div元素，
- *       我们统计codeEditor的直接子div/p/br元素数量。
+ * 注意: 只有当 tab.isVirtualScroll 为 true 时，才使用虚拟滚动行号显示；
+ *       否则我们优先使用传入的内容参数来计算行数，如果没有传入则从DOM统计。
  */
 function updateLineNumbers(content)
 {
-	// 检查是否使用虚拟滚动
+	// 检查是否使用虚拟滚动（必须同时满足有lines数组且isVirtualScroll标志为true）
 	const currentTab = AppState.openTabs[AppState.activeTab];
-	if (currentTab && currentTab.lines && Array.isArray(currentTab.lines)) {
+	if (currentTab && currentTab.isVirtualScroll && currentTab.lines && Array.isArray(currentTab.lines)) {
 		// 使用虚拟滚动：使用 updateLineNumbersForVirtualScroll 来显示行号
 		// 获取当前可见区域的行号
 		const scrollTop = DOM.codeEditor.scrollTop;
@@ -1792,48 +1739,26 @@ function updateLineNumbers(content)
 		return;
 	}
 
-	// 原来的逻辑：不使用虚拟滚动
+	// 非虚拟滚动模式：优先使用传入的内容参数计算行数
 	let lines = 0;
-	const childNodes = DOM.codeEditor.childNodes;
+	let editorContent = '';
 
-	/*
-	 * 遍历codeEditor的直接子节点
-	 * 统计表示行的元素数量
-	 */
-	for (let i = 0; i < childNodes.length; i++) {
-		const node = childNodes[i];
+	// 如果传入了内容参数，优先使用它
+	if (content !== undefined && content !== null) {
+		editorContent = content;
+	} else {
+		// 否则从 DOM 获取内容
+		editorContent = getEditorContent();
+	}
 
-		if (node.nodeType === Node.ELEMENT_NODE) {
-			const tagName = node.tagName?.toLowerCase();
-
-			/*
-			 * div或p元素各占一行（即使为空）
-			 */
-			if (tagName === 'div' || tagName === 'p') {
-				lines++;
-			}
-			/*
-			 * br元素表示换行（占一行）
-			 */
-			else if (tagName === 'br') {
-				lines++;
-			}
-		} else if (node.nodeType === Node.TEXT_NODE) {
-			/*
-			 * 文本节点：计算其中的换行符数量
-			 * 注意：由于我们使用div包裹每行，通常不会有直接的文本节点
-			 * 但为了兼容性，这里保留文本节点的处理
-			 */
-			const textContent = node.textContent || '';
-			if (textContent.length > 0) {
-				/*
-				 * 如果文本节点包含换行符，计算换行符数量
-				 * 否则算作一行
-				 */
-				const newLines = (textContent.match(/\n/g) || []).length;
-				lines += newLines + 1;
-			}
-		}
+	// 从内容计算行数（这是最准确的方法）
+	if (editorContent) {
+		// 计算换行符数量，行数 = 换行符数量 + 1
+		const newLineCount = (editorContent.match(/\n/g) || []).length;
+		lines = newLineCount + 1;
+	} else {
+		// 空内容，至少显示1行
+		lines = 1;
 	}
 
 	/*
@@ -1851,6 +1776,14 @@ function updateLineNumbers(content)
 	}
 
 	DOM.lineNumbers.innerHTML = lineNumbersHtml;
+
+	// 同时更新标签页的行数
+	if (currentTab) {
+		const newLines = editorContent.split('\n');
+		currentTab.lines = newLines;
+		currentTab.content = editorContent;
+		currentTab.rawContent = editorContent;
+	}
 }
 
 /**
@@ -2762,7 +2695,7 @@ function initEventListeners() {
             clearTimeout(DOM.codeEditor._inputDebounceTimer);
         }
 
-        // 使用轻量级防抖（50ms），平衡性能和响应性
+        // 使用更短的防抖（20ms），使行号更新更加即时
         DOM.codeEditor._inputDebounceTimer = setTimeout(() => {
             if (AppState.activeTab >= 0 && AppState.activeTab < AppState.openTabs.length) {
                 const tab = AppState.openTabs[AppState.activeTab];
@@ -2775,15 +2708,20 @@ function initEventListeners() {
                     } else {
                         // 非虚拟滚动模式：从DOM获取内容
                         const content = getEditorContent();
+                        const newLines = content.split('\n');
+
+                        // 更新标签页内容和行数
                         tab.content = content;
                         tab.rawContent = content;
+                        tab.lines = newLines;
                         AppState.contentCache.set(tab.path, content);
-                        tab.lines = content.split('\n');
-                        updateLineNumbersOptimized(tab.lines.length);
+
+                        // 每次输入都更新行号，确保行号和内容同步
+                        updateLineNumbers(content);
                     }
                 }
             }
-        }, 50); // 50ms 防抖延迟
+        }, 20); // 20ms 防抖延迟，使行号更新更加即时
     };
 
 /**
@@ -2805,17 +2743,49 @@ function updateVirtualScrollContent(tab) {
     const visibleLinesContent = [];
     const childNodes = DOM.codeEditor.childNodes;
 
+    // 检测是否有换行符插入（行数变化）
+    let hasNewLines = false;
+    let totalNewLines = 0;
+
     for (let i = 0; i < childNodes.length; i++) {
         const node = childNodes[i];
         if (node.nodeType === Node.ELEMENT_NODE && node.dataset.lineIndex !== undefined) {
             const lineIndex = parseInt(node.dataset.lineIndex);
+            const content = node.textContent;
+            
+            // 检测该行是否包含换行符（用户按Enter）
+            if (content.includes('\n')) {
+                hasNewLines = true;
+                const newLineCount = (content.match(/\n/g) || []).length;
+                totalNewLines += newLineCount;
+            }
+
             if (lineIndex >= startLine && lineIndex < endLine) {
-                visibleLinesContent[lineIndex] = node.textContent;
+                visibleLinesContent[lineIndex] = content;
             }
         }
     }
 
-    // 更新缓存内容
+    // 如果检测到换行符，需要重新计算行数
+    if (hasNewLines && totalNewLines > 0) {
+        // 从DOM重新获取所有内容（包括新插入的行）
+        const allContent = getEditorContent();
+        const newLines = allContent.split('\n');
+        
+        // 更新标签页的行数
+        tab.lines = newLines;
+        tab.content = allContent;
+        tab.rawContent = allContent;
+        AppState.contentCache.set(tab.path, allContent);
+        
+        // 重新渲染行号（使用新的行数）
+        updateLineNumbersOptimized(newLines.length);
+        
+        console.log('[updateVirtualScrollContent] 检测到换行符，行数从', tab.lines.length - totalNewLines, '更新为', newLines.length);
+        return;
+    }
+
+    // 如果没有换行符，只更新已修改的行
     let contentChanged = false;
     for (let i = startLine; i < endLine; i++) {
         if (visibleLinesContent[i] !== undefined && visibleLinesContent[i] !== tab.lines[i]) {
@@ -3028,29 +2998,32 @@ function handleToggleFullscreen() {
 function handleTabIndent() {
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
-    
+
     const range = selection.getRangeAt(0);
-    
+
     // 创建包含4个空格的文本节点
     const spaces = document.createTextNode('    ');
-    
+
     // 插入空格
     range.insertNode(spaces);
-    
+
     // 将光标移动到插入的空格后面
     range.setStartAfter(spaces);
     range.setEndAfter(spaces);
     selection.removeAllRanges();
     selection.addRange(range);
-    
-    // 更新行号
-    updateLineNumbers(DOM.codeEditor.textContent);
-    
+
+    // 获取完整内容来更新行号（使用 getEditorContent 而不是 textContent）
+    const content = getEditorContent();
+    updateLineNumbers(content);
+
     // 保存修改的内容到缓存
     if (AppState.activeTab >= 0 && AppState.activeTab < AppState.openTabs.length) {
         const tab = AppState.openTabs[AppState.activeTab];
         if (!tab.isAbout) {
-            tab.content = getEditorContent();
+            tab.content = content;
+            tab.rawContent = content;
+            tab.lines = content.split('\n');
             AppState.contentCache.set(tab.path, tab.content);
         }
     }
@@ -3081,7 +3054,7 @@ function init() {
     renderTabs();
     console.log('[init] 标签页渲染完成');
 
-    console.log('Mikufy v2.5(stable) 初始化完成');
+    console.log('Mikufy v2.7-nova 初始化完成');
 }
 
 /**

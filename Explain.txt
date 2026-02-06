@@ -1,23 +1,18 @@
-Mikufy v2.5(stable) - Fedora43、ArchLinux、Debian13 依赖包列表
-====================================
+Mikufy v2.7-nova - Fedora43、ArchLinux、Debian13 依赖包列表
+
 
 必需依赖：
-----------
-sudo dnf install webkitgtk6.0-devel gtk4-devel file-devel json-devel gcc-c++ pkg-config glib2-devel
-========================================================================================================================
+
+
+Fedora43(或其他较新的RHEL系)
+sudo dnf install webkitgtk6.0-devel gtk4-devel file-devel json-devel gcc-c++ pkg-config glib2-devel file-libs
+
+*
+
+ArchLinux(或其他较新的ArchLinux系)
 sudo pacman -S pkgconf base-devel webkitgtk6.0 gtk4 glib2-devel file nlohmann-json
-========================================================================================================================
+
+*
+
+Debian13(或其他较新的Debian系)
 sudo apt install pkg-config  libwebkitgtk-6.0-dev file libgtk-4-dev nlohmann-json3-dev g++ libglib2.0-dev libmagic-dev
-
-依赖说明：
-----------
-- webkitgtk6.0-devel: WebKitGTK 6.0 开发库（用于 WebView）
-- gtk4-devel: GTK4 开发库（图形界面）
-- file-devel: 文件操作库
-- json-devel: JSON 解析库
-- gcc-c++: C++ 编译器
-- pkg-config: 包配置工具
-
-编译命令：
-----------
-./build.sh

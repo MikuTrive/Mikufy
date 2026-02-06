@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.5(stable) - 主程序入口
+ * Mikufy v2.7-nova - 主程序入口
  *
  * 这是Mikufy代码编辑器的主程序文件，包含应用程序的入口点main()函数。
  * 该文件负责：
@@ -28,6 +28,10 @@
 #include <iostream>		/* std::cout, std::cerr */
 #include <csignal>		/* signal(), SIGINT, SIGTERM */
 #include <cstdlib>		/* std::atoi(), exit() */
+#include <limits.h>		/* PATH_MAX */
+#include <unistd.h>		/* readlink(), getcwd() */
+#include <dirent.h>		/* opendir(), closedir() */
+#include <cstring>		/* getcwd() */
 
 /*
  * ============================================================================
@@ -104,7 +108,7 @@ static void signal_handler(int signal)
 static void print_welcome(void)
 {
 	std::cout << "========================================" << std::endl;
-	std::cout << "  Mikufy v2.5(stable) - Code Editor" << std::endl;
+	std::cout << "  Mikufy v2.7-nova - Code Editor" << std::endl;
 	std::cout << "========================================" << std::endl;
 }
 
@@ -132,6 +136,35 @@ static void print_usage(const char *program_name)
  *
  * 显示应用程序的名称、版本号和构建日期。
  */
+/*
+ * get_executable_path - 获取可执行文件所在目录的绝对路径
+ *
+ * 通过读取 /proc/self/exe 获取可执行文件的完整路径，然后
+ * 提取目录部分。这对于确定程序安装后的资源文件位置非常重要。
+ *
+ * 返回值: 可执行文件所在目录的绝对路径，失败返回空字符串
+ */
+static std::string get_executable_path(void)
+{
+	char exe_path[PATH_MAX];
+	ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+
+	if (len == -1) {
+		return "";
+	}
+
+	exe_path[len] = '\0';
+
+	/* 提取目录部分 */
+	std::string path(exe_path);
+	size_t pos = path.find_last_of('/');
+	if (pos != std::string::npos) {
+		return path.substr(0, pos);
+	}
+
+	return "";
+}
+
 static void print_version(void)
 {
 	std::cout << MIKUFY_NAME << " v" << MIKUFY_VERSION << std::endl;
@@ -267,6 +300,50 @@ int main(int argc, char *argv[])
 			delete g_file_manager;
 			return 1;
 		}
+
+		/*
+		 * 设置web资源根目录
+		 * 使用可执行文件所在目录
+		 */
+		std::string exec_dir = get_executable_path();
+		std::string web_root;
+
+		if (!exec_dir.empty()) {
+			web_root = exec_dir + "/web";
+			std::cout << "可执行文件目录: " << exec_dir << std::endl;
+			std::cout << "Web资源目录: " << web_root << std::endl;
+
+			/* 验证目录是否存在 */
+			DIR *dir = opendir(web_root.c_str());
+			if (dir) {
+				closedir(dir);
+				std::cout << "Web资源目录验证成功" << std::endl;
+			} else {
+				std::cout << "警告: Web资源目录不存在: " << web_root << std::endl;
+				/* 后备：使用当前工作目录 */
+				char cwd[PATH_MAX];
+				if (getcwd(cwd, sizeof(cwd)) != NULL) {
+					web_root = std::string(cwd) + "/web";
+					std::cout << "使用当前工作目录: " << web_root << std::endl;
+				} else {
+					web_root = "web";
+					std::cout << "使用相对路径" << std::endl;
+				}
+			}
+		} else {
+			std::cout << "警告: 无法获取可执行文件路径" << std::endl;
+			/* 使用当前工作目录 */
+			char cwd[PATH_MAX];
+			if (getcwd(cwd, sizeof(cwd)) != NULL) {
+				web_root = std::string(cwd) + "/web";
+				std::cout << "使用当前工作目录: " << web_root << std::endl;
+			} else {
+				web_root = "web";
+				std::cout << "使用相对路径" << std::endl;
+			}
+		}
+
+		g_web_server->set_web_root_path(web_root);
 
 		/*
 		 * 设置打开文件夹对话框的回调函数
