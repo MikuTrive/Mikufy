@@ -42,13 +42,6 @@
 
 #### 功能增强
 
-<<<<<<< Updated upstream
-### 快捷键列表
-    快捷键
-    
-| 快捷键 | 用途 |
-|------|---------|
-=======
 - **文件缓存机制**：FileManager 新增 LRU 缓存，提升重复读取性能
 - **壁纸更换**：支持在 17 种预设壁纸中切换（可自行加入新壁纸-新壁纸前缀必须index-*）
 - **异步文件对话框**：使用 GTK4 的异步 API，避免阻塞 GTK 主循环
@@ -74,7 +67,6 @@
 
 | 快捷键 | 功能说明 |
 |--------|----------|
->>>>>>> Stashed changes
 | `Ctrl+S` | 保存所有文件 |
 | `F5` | 刷新编辑器内容 |
 | `Ctrl+O` | 打开工作目录 |
@@ -385,8 +377,6 @@ pkg-config --modversion nlohmann_json
  */
 ```
 
-<<<<<<< Updated upstream
-=======
 #### 2. 缩进和格式
 
 - 使用 Tab 缩进（8 字符宽度）
@@ -405,7 +395,6 @@ int function_name(int param1, char *param2)
 	return 0;
 }
 ```
->>>>>>> Stashed changes
 
 #### 3. 命名约定
 
