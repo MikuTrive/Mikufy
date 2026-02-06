@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.5(stable) - Web服务器头文件
+ * Mikufy v2.7-nova - Web服务器头文件
  *
  * 本文件定义了WebServer类的接口，该类负责提供HTTP服务和
  * 处理前端请求。WebServer实现了完整的HTTP/1.1服务器功能，
@@ -46,6 +46,7 @@
 
 #include "main.h"		/* 全局定义和数据结构 */
 #include "file_manager.h"	/* FileManager文件管理器类 */
+#include "text_buffer.h"		/* 文本缓冲区类 */
 
 /* 网络编程头文件 */
 #include <sys/socket.h>		/* socket(), bind(), listen() */
@@ -191,6 +192,10 @@ private:
 
 	/* HTTP路由表（URL路径 -> 处理函数） */
 	std::map<std::string, HttpHandler> routes;
+
+	/* 高性能编辑器相关 */
+	std::unordered_map<std::string, TextBuffer *> text_buffers;	/* 文件路径 -> TextBuffer 映射 */
+	std::mutex text_buffers_mutex;				/* 保护 text_buffers 的互斥锁 */
 
 	/* ====================================================================
 	 * 私有方法 - 服务器主循环
@@ -474,38 +479,32 @@ private:
 			const std::map<std::string, std::string> &headers,
 			const std::string &body);
 
-	/**
-	 * handle_highlight_code - 处理代码语法高亮API
-	 *
-	 * 对代码进行语法高亮处理，返回高亮后的 HTML。
-	 */
-	HttpResponse handle_highlight_code(
-			const std::string &path,
-			const std::map<std::string, std::string> &headers,
-			const std::string &body);
+	/* ====================================================================
+	 * 私有方法 - 高性能编辑器 API
+	 * ==================================================================== */
 
 	/**
-	 * handle_render_file - 处理渲染文件API
+	 * handle_open_file_virtual - 使用虚拟化方式打开文件
 	 *
-	 * 读取文件内容并进行完整的语法高亮渲染，返回所有行的HTML。
-	 * 此API用于前端直接显示整个文件，无需前端处理虚拟滚动。
+	 * 使用 TextBuffer (Piece Table) 架构打开文件，支持大文件的高效编辑。
+	 * 返回文件的元数据（总行数、总字符数），不返回全部内容。
 	 *
 	 * @path: 请求路径（未使用）
 	 * @headers: 请求头（未使用）
 	 * @body: JSON请求体，包含path字段
 	 *
-	 * 返回: JSON响应，包含success、html、language和totalLines字段
+	 * 返回: JSON响应，包含success、totalLines、totalChars、language字段
 	 */
-	HttpResponse handle_render_file(
+	HttpResponse handle_open_file_virtual(
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
 			const std::string &body);
 
 	/**
-	 * handle_highlight_range - 处理增量语法高亮API
+	 * handle_get_lines - 获取指定行范围的内容
 	 *
-	 * 对指定行范围的代码进行语法高亮，用于虚拟滚动场景。
-	 * 只返回可见区域的高亮结果，大幅减少数据传输量。
+	 * 从 TextBuffer 中获取指定行范围的文本内容，用于虚拟滚动渲染。
+	 * 只返回可见区域的行，大幅减少数据传输量。
 	 *
 	 * @path: 请求路径（未使用）
 	 * @headers: 请求头（未使用）
@@ -513,40 +512,87 @@ private:
 	 *
 	 * 返回: JSON响应，包含success、lines、language字段
 	 */
-	HttpResponse handle_highlight_range(
+	HttpResponse handle_get_lines(
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
 			const std::string &body);
 
 	/**
-	 * handle_render_file_instant - 处理立即渲染API
+	 * handle_get_line_count - 获取总行数
 	 *
-	 * 只高亮首屏内容立即返回，剩余部分在后台处理。
-	 * 实现零延迟的文件打开体验。
+	 * 获取当前打开文件的总行数。
 	 *
 	 * @path: 请求路径（未使用）
 	 * @headers: 请求头（未使用）
-	 * @body: JSON请求体，包含path、first_screen_lines字段
+	 * @body: JSON请求体，包含path字段
 	 *
-	 * 返回: JSON响应，包含success、lines、totalLines、language、has_more字段
+	 * 返回: JSON响应，包含success、totalLines字段
 	 */
-	HttpResponse handle_render_file_instant(
+	HttpResponse handle_get_line_count(
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
 			const std::string &body);
 
 	/**
-	 * handle_get_remaining_highlight - 获取剩余高亮结果API
+	 * handle_edit_insert - 插入文本
 	 *
-	 * 获取立即渲染后的剩余部分高亮结果。
+	 * 在指定位置插入文本到 TextBuffer 中。
 	 *
 	 * @path: 请求路径（未使用）
 	 * @headers: 请求头（未使用）
-	 * @body: JSON请求体，包含path、start_line字段
+	 * @body: JSON请求体，包含path、position、text字段
 	 *
-	 * 返回: JSON响应，包含success、lines、startLine字段
+	 * 返回: JSON响应，包含success、newTotalLines字段
 	 */
-	HttpResponse handle_get_remaining_highlight(
+	HttpResponse handle_edit_insert(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_edit_delete - 删除文本范围
+	 *
+	 * 删除指定范围的文本。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含path、start_position、end_position字段
+	 *
+	 * 返回: JSON响应，包含success、newTotalLines字段
+	 */
+	HttpResponse handle_edit_delete(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_edit_replace - 替换文本范围
+	 *
+	 * 将指定范围的文本替换为新文本。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含path、start_position、end_position、text字段
+	 *
+	 * 返回: JSON响应，包含success、newTotalLines字段
+	 */
+	HttpResponse handle_edit_replace(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_close_file_virtual - 关闭虚拟文件
+	 *
+	 * 关闭并释放 TextBuffer 资源。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含path字段
+	 *
+	 * 返回: JSON响应，包含success字段
+	 */
+	HttpResponse handle_close_file_virtual(
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
 			const std::string &body);
@@ -614,17 +660,6 @@ private:
 	 * 返回值: 检测到的语言名称
 	 */
 	std::string detect_language_simple(const std::string &filename);
-
-	/**
-	 * highlight_code_simple - 简化的代码高亮函数（仅转义 HTML）
-	 *
-	 * 将代码内容转换为 HTML，仅进行 HTML 转义，不进行语法高亮。
-	 *
-	 * @code: 要处理的代码内容
-	 *
-	 * 返回值: 转义后的 HTML
-	 */
-	std::string highlight_code_simple(const std::string &code);
 };
 
 #endif /* MIKUFY_WEB_SERVER_H */

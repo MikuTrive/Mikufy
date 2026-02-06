@@ -1,4 +1,4 @@
-# Mikufy v2.5(stable)
+# Mikufy v2.7-nova
 # 作者 luozenan
 
 # /home/l/nix/flake.nix（最终版，跨版本兼容）

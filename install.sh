@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Mikufy v2.5(stable) - 安装脚本
+# Mikufy v2.7-nova - 安装脚本
 # 适用于所有Linux发行版用户的系统
 # 支持系统级安装（需要sudo）和用户级安装（无需sudo）
 #
@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-VERSION="2.5(stable)"
+VERSION="v2.7-nova"
 APP_NAME="mikufy"
 EXECUTABLE="${APP_NAME}"
 WEB_DIR="web"

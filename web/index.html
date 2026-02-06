@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<!--
+ * Mikufy v2.7-nova - 代码编辑器前端页面
+ *
+ * 这是一个基于Web的代码编辑器界面，支持文件浏览、多标签页编辑、
+ * 语法高亮、媒体文件预览等功能。
+ *
+ * 页面结构：
+ *   - Logo区域：显示应用Logo
+ *   - 主界面容器：包含左侧文件树和右侧编辑器
+ *   - 左侧面板：文件操作工具栏、路径显示、文件树
+ *   - 右侧面板：标签页、代码编辑器
+ *   - 弹窗组件：右键菜单、新建对话框、壁纸选择、消息弹窗
+ *
+ * 作者：MikuTrive
+ * 版本：v2.7-nova
+ * 许可证：详见 LICENSE 文件
+ -->
+<html lang="zh-CN">
+<head>
+    <!-- 字符编码设置：使用UTF-8以支持多语言 -->
+    <meta charset="UTF-8">
+    <!-- 视口设置：确保在移动设备上正确显示 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 页面标题 -->
+    <title>Mikufy v2.7-nova - Code Editor</title>
+    <!-- 加载样式表 -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!--
+     * Logo区域
+     * 位置：页面左上角
+     * 功能：显示应用Logo标识
+     * z-index：1000（确保在其他元素之上）
+     -->
+    <div id="logo-container">
+        <!-- Logo图片 -->
+        <img src="Mikufy.png" alt="Mikufy Logo" id="logo-img">
+    </div>
+
+    <!--
+     * 通知栏（从头顶下滑）
+     * 功能：显示操作成功等通知信息
+     * 默认状态：隐藏（top: -60px）
+     * 位置：页面顶部，固定定位
+     * 动画：从头顶下滑到视口
+     * z-index：2000（确保在其他元素之上）
+     -->
+    <div id="notification">
+        <!-- 通知图标 -->
+        <img src="Icons/Hight.svg" alt="成功" class="notification-icon">
+        <!-- 通知文本 -->
+        <span class="notification-text"></span>
+    </div>
+
+    <!--
+     * 主界面容器
+     * 布局：Flexbox水平布局（左右分栏）
+     * 位置：占据整个视口，预留Logo和边距空间
+     * 包含：左侧文件面板 + 右侧编辑面板
+     -->
+    <div id="main-container">
+        <!--
+         * 左侧面板
+         * 功能：文件浏览和管理
+         * 包含：
+         *   - 文件操作工具栏（打开、新建、设置）
+         *   - 当前路径显示区域
+         *   - 文件树（动态生成）
+         * 宽度：280px（可调整200-400px）
+         -->
+        <div id="left-panel">
+            <!--
+             * 文件操作工具栏
+             * 功能：提供常用的文件操作按钮
+             * 按钮：
+             *   - 打开文件夹：选择工作目录
+             *   - 新建文件夹：在当前目录创建子文件夹
+             *   - 新建文件：在当前目录创建新文件
+             *   - 设置：打开设置页面
+             -->
+            <div id="file-toolbar">
+                <!-- 打开文件夹按钮 -->
+                <button id="btn-open-folder" title="打开文件夹 (Ctrl+O)">
+                    <img src="Icons/Folder-Open.svg" alt="打开文件夹">
+                </button>
+                <!-- 新建文件夹按钮 -->
+                <button id="btn-new-folder" title="新建文件夹 (Ctrl+F)">
+                    <img src="Icons/Folder-New.svg" alt="新建文件夹">
+                </button>
+                <!-- 新建文件按钮 -->
+                <button id="btn-new-file" title="新建文件 (Ctrl+N)">
+                    <img src="Icons/File.svg" alt="新建文件">
+                </button>
+                <!-- 设置按钮 -->
+                <button id="btn-settings" title="设置">
+                    <img src="Icons/Setting.svg" alt="设置">
+                </button>
+            </div>
+
+            <!--
+             * 当前路径显示区域
+             * 功能：显示当前浏览的文件路径
+             * 包含：
+             *   - 路径文本框：显示相对路径
+             *   - 返回按钮：返回上级目录
+             -->
+            <div id="path-display">
+                <!-- 当前路径显示文本 -->
+                <div id="current-path">无</div>
+                <!-- 返回上级目录按钮 -->
+                <button id="btn-back" title="返回上级目录" disabled>
+                    <img src="Icons/Put-away.png" alt="返回">
+                </button>
+            </div>
+
+            <!--
+             * 文件树区域
+             * 功能：显示当前目录下的文件和文件夹
+             * 特性：
+             *   - 动态生成：由JavaScript根据后端API返回的数据生成
+             *   - 滚动支持：内容过多时显示垂直滚动条
+             *   - 右键菜单：支持重命名和删除操作
+             *   - 排序：文件夹在前，文件在后，按名称排序
+             -->
+            <div id="file-tree">
+                <!-- 文件树内容将通过JavaScript动态生成 -->
+            </div>
+        </div>
+
+        <!--
+         * 右侧代码编辑区域
+         * 功能：多标签页代码编辑
+         * 包含：
+         *   - 标签页容器：显示所有打开的文件标签
+         *   - 编辑器容器：包含行号和代码编辑区
+         * 布局：Flexbox垂直布局
+         -->
+        <div id="right-panel">
+            <!--
+             * 标签页区域
+             * 功能：显示和管理打开的文件标签
+             * 特性：
+             *   - 横向滚动：标签过多时支持横向滚动
+             *   - 激活状态：当前编辑的标签高亮显示
+             *   - 关闭按钮：每个标签都有关闭按钮
+             -->
+            <div id="tabs-container">
+                <!-- 标签页滚动容器（隐藏原生滚动条） -->
+                <div id="tabs-scroll">
+                    <!-- 标签页将通过JavaScript动态生成 -->
+                </div>
+                <!-- 标签页水平滚动条（自定义，当前已隐藏） -->
+                <div id="tabs-scrollbar">
+                    <div id="tabs-scrollbar-thumb"></div>
+                </div>
+            </div>
+
+            <!--
+             * 代码编辑器区域
+             * 功能：提供代码编辑功能
+             * 布局：Flexbox水平布局
+             * 包含：
+             *   - 行号区域：显示代码行号
+             *   - 代码编辑区：可编辑的代码内容
+             *   - 垂直滚动条：自定义滚动条
+             * 特性：
+             *   - 自动缩进：Tab键插入4个空格
+             *   - 媒体预览：支持图片、视频、音频预览
+             *   - 行号同步：滚动时行号与代码同步
+             -->
+            <div id="editor-container">
+                <!-- 行号区域 -->
+                <div id="line-numbers">
+                    <!-- 行号将通过JavaScript动态生成 -->
+                </div>
+
+                <!-- 代码编辑区域 -->
+                <div id="code-editor" contenteditable="true" spellcheck="false">
+                    <!-- 代码内容将通过JavaScript动态生成 -->
+                </div>
+
+                <!-- 垂直滚动条 -->
+                <div id="vertical-scrollbar">
+                    <div id="vertical-scrollbar-thumb"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--
+     * 右键菜单
+     * 功能：对文件或文件夹执行操作
+     * 默认状态：隐藏（display: none）
+     * 位置：固定定位，跟随鼠标位置
+     * 菜单项：
+     *   - 重命名：修改文件或文件夹名称
+     *   - 删除：删除文件或文件夹
+     -->
+    <div id="context-menu" style="display: none;">
+        <div id="context-rename">重命名此选项</div>
+        <div id="context-delete">删除此选项</div>
+    </div>
+
+    <!--
+     * 新建对话框
+     * 功能：创建新文件或文件夹
+     * 默认状态：隐藏（display: none）
+     * 位置：页面居中
+     * 包含：
+     *   - 标题：显示"新建文件夹"或"新建文件"
+     *   - 输入框：输入文件或文件夹名称
+     *   - 按钮：确定和取消
+     * 快捷键：
+     *   - Enter：确认
+     *   - Escape：取消
+     -->
+    <div id="new-dialog" style="display: none;">
+        <div id="new-dialog-content">
+            <h3 id="new-dialog-title">新建</h3>
+            <input type="text" id="new-dialog-input" placeholder="请输入名称">
+            <div id="new-dialog-buttons">
+                <button id="new-dialog-confirm">确定</button>
+                <button id="new-dialog-cancel">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!--
+     * 壁纸选择弹窗
+     * 功能：选择编辑器背景壁纸
+     * 默认状态：隐藏（display: none）
+     * 位置：页面居中
+     * 特性：
+     *   - 网格布局：4列显示壁纸缩略图
+     *   - 单击选中：高亮显示选中的壁纸
+     *   - 双击应用：立即应用选中的壁纸
+     *   - ESC退出：按ESC键关闭弹窗
+     -->
+    <div id="wallpaper-dialog" style="display: none;">
+        <div id="wallpaper-dialog-content">
+            <div id="wallpaper-grid">
+                <!-- 壁纸将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!--
+     * 自定义消息弹窗
+     * 功能：显示提示、警告、错误等信息
+     * 默认状态：隐藏（display: none）
+     * 位置：页面居中
+     * 特性：
+     *   - 动画效果：淡入和滑入动画
+     *   - 模态窗口：背景半透明遮罩
+     *   - 关闭方式：点击确定按钮或关闭按钮
+     * 应用场景：
+     *   - 操作成功提示
+     *   - 错误信息显示
+     *   - 确认对话框
+     -->
+    <div id="message-dialog" style="display: none;">
+        <div id="message-dialog-content">
+            <!-- 弹窗头部：标题和关闭按钮 -->
+            <div id="message-dialog-header">
+                <span id="message-dialog-title">提示</span>
+                <button id="message-dialog-close" class="message-dialog-close-btn">×</button>
+            </div>
+            <!-- 弹窗主体：消息内容 -->
+            <div id="message-dialog-body">
+                <p id="message-dialog-message"></p>
+            </div>
+            <!-- 弹窗底部：操作按钮 -->
+            <div id="message-dialog-footer">
+                <button id="message-dialog-ok" class="message-dialog-btn">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载JavaScript文件 -->
+    <script src="virtual_editor.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
