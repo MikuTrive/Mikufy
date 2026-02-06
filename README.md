@@ -294,7 +294,7 @@ sudo apt install nlohmann-json3-dev
 ```nix
 inputs = {
   mikufy-github = {
-    url = "github:MikuTrive/Mikufy";
+    url = "github:MikuTrive/Mikufy/tree/mikufy-v2.7-nova";
     inputs.nixpkgs.follows = "nixpkgs";
   };
 };
