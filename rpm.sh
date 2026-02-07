@@ -165,8 +165,8 @@ Version:        2.7.nova
 Release:        1%{?dist}
 Summary:        Mikufy - A modern file editor with web interface
 
-License:        MIT
-URL:            https://github.com/MikuTrive/Mikufy
+License:        GPL-3.0
+URL:            https://github.com/MikuTrive/Mikufy/tree/mikufy-v2.7-nova
 Source0:        %{name}-%{version}.tar.gz
 
 # 构建依赖
