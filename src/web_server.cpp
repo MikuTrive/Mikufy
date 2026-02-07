@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.5(stable) - Web服务器实现
+ * Mikufy v2.7-nova - Web服务器实现
  *
  * 本文件实现了HTTP服务器功能，负责与前端进行通信。
  * 主要功能包括：
@@ -8,11 +8,13 @@
  * - 提供文件操作API（读取、写入、删除、重命名等）
  * - 处理静态文件请求
  * - 支持路由机制
+ * - 高性能编辑器 API（基于 TextBuffer 虚拟化渲染）
  *
  * Mikufy Project
  */
 
 #include "../headers/web_server.h"
+#include "../headers/text_buffer.h"
 #include <iostream>
 #include <cstring>
 #include <sstream>
@@ -21,18 +23,19 @@
 #include <poll.h>
 #include <stdio.h>	/* popen(), pclose() */
 #include <sys/wait.h>	/* WIFEXITED(), WEXITSTATUS() */
+#include <unordered_map>
 
 /**
  * WebServer::WebServer - Web服务器构造函数
  * @file_manager: 文件管理器指针，用于文件操作
  *
- * 初始化Web服务器实例，设置默认参数并注册所有API路由。
+ * 初始化WebServer实例，设置默认参数并注册所有API路由。
  *
  * 注意：构造函数不会自动启动服务器，需要显式调用start()方法。
  */
 WebServer::WebServer(FileManager *file_manager)
 	: file_manager(file_manager), server_socket(-1),
-	  port(WEB_SERVER_PORT), running(false)
+	  port(WEB_SERVER_PORT), running(false), web_root_path("")
 {
 	register_routes(); /* 注册所有API路由处理器 */
 }
@@ -45,6 +48,25 @@ WebServer::WebServer(FileManager *file_manager)
 WebServer::~WebServer(void)
 {
 	stop(); /* 停止服务器并释放资源 */
+
+	/* 清理所有 TextBuffer */
+	std::lock_guard<std::mutex> lock(text_buffers_mutex);
+	for (auto &pair : text_buffers) {
+		delete pair.second;
+	}
+	text_buffers.clear();
+}
+
+/**
+ * WebServer::set_web_root_path - 设置web资源根目录的绝对路径
+ * @path: web目录的绝对路径
+ *
+ * 设置web资源文件所在的目录路径，用于确保无论程序从哪个目录启动，
+ * 都能正确找到和修改web资源文件（如style.css）。
+ */
+void WebServer::set_web_root_path(const std::string &path)
+{
+	web_root_path = path;
 }
 
 /**
@@ -764,39 +786,56 @@ void WebServer::register_routes(void)
 		return handle_get_wallpapers(path, headers, body);
 	};
 
-	routes["/api/highlight-code"] = [this](
+	/*
+	 * 高性能编辑器 API 路由（基于 TextBuffer 虚拟化渲染）
+	 */
+	routes["/api/open-file-virtual"] = [this](
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
 			const std::string &body) {
-		return handle_highlight_code(path, headers, body);
+		return handle_open_file_virtual(path, headers, body);
 	};
 
-	routes["/api/render-file"] = [this](
+	routes["/api/get-lines"] = [this](
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
 			const std::string &body) {
-		return handle_render_file(path, headers, body);
+		return handle_get_lines(path, headers, body);
 	};
 
-	routes["/api/highlight-range"] = [this](
+	routes["/api/get-line-count"] = [this](
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
 			const std::string &body) {
-		return handle_highlight_range(path, headers, body);
+		return handle_get_line_count(path, headers, body);
 	};
 
-	routes["/api/render-file-instant"] = [this](
+	routes["/api/edit-insert"] = [this](
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
 			const std::string &body) {
-		return handle_render_file_instant(path, headers, body);
+		return handle_edit_insert(path, headers, body);
 	};
 
-	routes["/api/get-remaining-highlight"] = [this](
+	routes["/api/edit-delete"] = [this](
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
 			const std::string &body) {
-		return handle_get_remaining_highlight(path, headers, body);
+		return handle_edit_delete(path, headers, body);
+	};
+
+	routes["/api/edit-replace"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_edit_replace(path, headers, body);
+	};
+
+	routes["/api/close-file-virtual"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_close_file_virtual(path, headers, body);
 	};
 }
 
@@ -1438,14 +1477,19 @@ HttpResponse WebServer::handle_change_wallpaper(
 		}
 
 		// 读取style.css文件
-		std::string cssPath = "web/style.css";
+		std::string cssPath;
+		if (!web_root_path.empty()) {
+			cssPath = web_root_path + "/style.css";
+		} else {
+			cssPath = "web/style.css";
+		}
 		std::string cssContent;
 		bool success = file_manager->read_file(cssPath, cssContent);
 
 		if (!success) {
 			json result;
 			result["success"] = false;
-			result["error"] = "Failed to read style.css";
+			result["error"] = "Failed to read style.css from: " + cssPath;
 			response.body = result.dump();
 			return response;
 		}
@@ -1533,7 +1577,21 @@ HttpResponse WebServer::handle_get_wallpapers(
 	/*
 	 * Background目录路径
 	 */
-	const std::string bg_dir = "web/Background";
+	const std::string bg_dir = web_root_path.empty() ?
+				   "web/Background" : web_root_path + "/Background";
+
+	/*
+	 * 检查目录是否存在
+	 */
+	DIR *dir = opendir(bg_dir.c_str());
+	if (!dir) {
+		json result;
+		result["success"] = false;
+		result["error"] = "Failed to open Background directory: " + bg_dir;
+		response.body = result.dump();
+		return response;
+	}
+	closedir(dir);
 
 	/*
 	 * 支持的图片扩展名（小写）
@@ -1559,7 +1617,8 @@ HttpResponse WebServer::handle_get_wallpapers(
 	if (!success) {
 		json result;
 		result["success"] = false;
-		result["error"] = "Failed to read Background directory";
+		result["error"] = "Failed to read Background directory: " + bg_dir;
+		result["path"] = bg_dir;
 		result["wallpapers"] = json::array();
 		response.body = result.dump();
 		return response;
@@ -1648,175 +1707,6 @@ HttpResponse WebServer::handle_get_wallpapers(
 }
 
 /**
- * WebServer::handle_highlight_code - 处理代码语法高亮API
- * @path: 请求路径（未使用）
- * @headers: 请求头（未使用）
- * @body: JSON请求体，包含code、language和filename字段
- *
- * 对代码进行语法高亮处理，返回高亮后的 HTML。
- *
- * 返回: JSON响应，包含success和html字段
- */
-HttpResponse WebServer::handle_highlight_code(
-	const std::string &path, const std::map<std::string, std::string> &headers,
-	const std::string &body)
-{
-	(void)path;
-	(void)headers;
-
-	HttpResponse response;
-	response.status_code = 200;
-	response.status_text = "OK";
-	response.headers["Content-Type"] = "application/json";
-
-	try {
-		json request = json::parse(body);
-		std::string code = request["code"];
-		std::string language = request["language"];
-		std::string filename = request.value("filename", "");
-
-		/*
-		 * 参数验证
-		 */
-		if (code.empty()) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Code parameter is required";
-			response.body = result.dump();
-			return response;
-		}
-
-		/*
-		 * 如果未指定语言，自动检测
-		 */
-		if (language.empty()) {
-			language = detect_language_simple(filename);
-		}
-
-		/*
-		 * 进行简单的 HTML 转义（不进行语法高亮）
-		 */
-		std::string html = highlight_code_simple(code);
-
-		json result;
-		result["success"] = true;
-		result["html"] = html;
-		result["language"] = language;
-
-		response.body = result.dump();
-	} catch (const std::exception &e) {
-		json result;
-		result["success"] = false;
-		result["error"] = e.what();
-		response.body = result.dump();
-	}
-
-	return response;
-}
-
-/**
- * WebServer::handle_render_file - 处理渲染文件API
- * @path: 请求路径（未使用）
- * @headers: 请求头（未使用）
- * @body: JSON请求体，包含path字段
- *
- * 读取文件内容并进行完整的语法高亮渲染，返回所有行的HTML。
- * 此API用于前端直接显示整个文件，无需前端处理虚拟滚动。
- *
- * 返回: JSON响应，包含success、html、language和totalLines字段
- */
-HttpResponse WebServer::handle_render_file(
-	const std::string &path, const std::map<std::string, std::string> &headers,
-	const std::string &body)
-{
-	(void)path;
-	(void)headers;
-
-	HttpResponse response;
-	response.status_code = 200;
-	response.status_text = "OK";
-	response.headers["Content-Type"] = "application/json";
-
-	try {
-		json request = json::parse(body);
-		std::string file_path = request["path"];
-
-		/*
-		 * 参数验证
-		 */
-		if (file_path.empty()) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Path parameter is required";
-			response.body = result.dump();
-			return response;
-		}
-
-		/*
-		 * 读取文件内容
-		 */
-		std::string code;
-		bool read_success = file_manager->read_file(file_path, code);
-
-		if (!read_success) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Failed to read file";
-			response.body = result.dump();
-			return response;
-		}
-
-		/*
-		 * 自动检测语言
-		 */
-		std::string language = detect_language_simple(file_path);
-
-		/*
-		 * 进行简单的 HTML 转义（不进行语法高亮）
-		 */
-		std::string html = highlight_code_simple(code);
-
-		/*
-		 * 统计总行数
-		 */
-		int total_lines = 0;
-		for (char c : code) {
-			if (c == '\n')
-				total_lines++;
-		}
-		if (!code.empty())
-			total_lines++;
-
-		/*
-		 * 将高亮后的 HTML 按行分割，便于前端显示
-		 */
-		std::vector<std::string> lines_html;
-		std::istringstream iss(html);
-		std::string line;
-		while (std::getline(iss, line)) {
-			lines_html.push_back(line);
-		}
-
-		json result;
-		result["success"] = true;
-		result["html"] = html;
-		result["lines"] = lines_html;
-		result["totalLines"] = total_lines;
-		result["language"] = language;
-		result["content"] = code; /* 保留原始内容用于编辑 */
-
-		response.body = result.dump();
-	} catch (const std::exception &e) {
-		json result;
-		result["success"] = false;
-		result["error"] = e.what();
-		response.body = result.dump();
-	}
-
-	return response;
-}
-
-/**
  * WebServer::handle_static_file - 处理静态文件请求
  * @path: 请求路径
  *
@@ -1842,9 +1732,15 @@ HttpResponse WebServer::handle_static_file(const std::string &path)
 		file_path = "/index.html";
 
 	/* 构建完整的文件路径 */
-	std::string full_path = "web" + file_path;
+	std::string full_path;
+	if (!web_root_path.empty()) {
+		full_path = web_root_path + file_path;
+	} else {
+		full_path = "web" + file_path;
+	}
 
 	std::cout << "静态文件请求: " << path << " -> " << full_path
+		  << " (web_root_path: " << (web_root_path.empty() ? "empty" : web_root_path) << ")"
 		  << std::endl;
 
 	/* 读取文件 */
@@ -2001,296 +1897,6 @@ std::string WebServer::get_http_mime_type(const std::string &file_path)
 	return (it != mime_types.end()) ? it->second : "application/octet-stream";
 }
 
-/**
- * WebServer::handle_highlight_range - 处理增量语法高亮API
- * @path: 请求路径（未使用）
- * @headers: 请求头（未使用）
- * @body: JSON请求体，包含path、start_line、end_line字段
- *
- * 对指定行范围的代码进行语法高亮，用于虚拟滚动场景。
- * 只返回可见区域的高亮结果，大幅减少数据传输量。
- *
- * 返回: JSON响应，包含success、lines、language字段
- */
-HttpResponse WebServer::handle_highlight_range(
-	const std::string &path, const std::map<std::string, std::string> &headers,
-	const std::string &body)
-{
-	(void)path;
-	(void)headers;
-
-	HttpResponse response;
-	response.status_code = 200;
-	response.status_text = "OK";
-	response.headers["Content-Type"] = "application/json";
-
-	try {
-		json request = json::parse(body);
-		std::string file_path = request["path"];
-		int start_line = request["start_line"];
-		int end_line = request["end_line"];
-
-		/* 参数验证 */
-		if (file_path.empty()) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Path parameter is required";
-			response.body = result.dump();
-			return response;
-		}
-
-		if (start_line < 0 || end_line < 0 || start_line > end_line) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Invalid line range";
-			response.body = result.dump();
-			return response;
-		}
-
-		/* 读取文件内容 */
-		std::string code;
-		bool read_success = file_manager->read_file(file_path, code);
-
-		if (!read_success) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Failed to read file";
-			response.body = result.dump();
-			return response;
-		}
-
-		/* 自动检测语言 */
-		std::string language = detect_language_simple(file_path);
-
-		/* 分割代码为行并处理指定范围 */
-		std::vector<std::string> lines;
-		std::istringstream iss(code);
-		std::string line;
-		while (std::getline(iss, line)) {
-			lines.push_back(line);
-		}
-
-		/* 检查行数范围 */
-		if (start_line < 0)
-			start_line = 0;
-		if (end_line > (int)lines.size())
-			end_line = (int)lines.size();
-		if (start_line >= end_line) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Invalid line range";
-			response.body = result.dump();
-			return response;
-		}
-
-		/* 转义指定范围的行 */
-		std::vector<std::string> lines_html;
-		for (int i = start_line; i < end_line; i++) {
-			lines_html.push_back(escape_html(lines[i]));
-		}
-
-		json result;
-		result["success"] = true;
-		result["lines"] = lines_html;
-		result["language"] = language;
-		result["startLine"] = start_line;
-		result["endLine"] = end_line;
-
-		response.body = result.dump();
-	} catch (const std::exception &e) {
-		json result;
-		result["success"] = false;
-		result["error"] = e.what();
-		response.body = result.dump();
-	}
-
-	return response;
-}
-
-/**
- * WebServer::handle_render_file_instant - 处理立即渲染API
- * @path: 请求路径（未使用）
- * @headers: 请求头（未使用）
- * @body: JSON请求体，包含path、first_screen_lines字段
- *
- * 只高亮首屏内容立即返回，剩余部分在后台处理。
- * 实现零延迟的文件打开体验。
- *
- * 返回: JSON响应，包含success、lines、totalLines、language、has_more字段
- */
-HttpResponse WebServer::handle_render_file_instant(
-	const std::string &path, const std::map<std::string, std::string> &headers,
-	const std::string &body)
-{
-	(void)path;
-	(void)headers;
-
-	HttpResponse response;
-	response.status_code = 200;
-	response.status_text = "OK";
-	response.headers["Content-Type"] = "application/json";
-
-	try {
-		json request = json::parse(body);
-		std::string file_path = request["path"];
-		int first_screen_lines = request.value("first_screen_lines", 50);
-
-		if (file_path.empty()) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Path parameter is required";
-			response.body = result.dump();
-			return response;
-		}
-
-		/* 读取文件内容 */
-		std::string code;
-		bool read_success = file_manager->read_file(file_path, code);
-
-		if (!read_success) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Failed to read file";
-			response.body = result.dump();
-			return response;
-		}
-
-		/* 自动检测语言 */
-		std::string language = detect_language_simple(file_path);
-
-		/* 统计总行数 */
-		int total_lines = 0;
-		for (char c : code) {
-			if (c == '\n')
-				total_lines++;
-		}
-		if (!code.empty())
-			total_lines++;
-
-		/* 分割代码为行并转义首屏 */
-		std::vector<std::string> lines;
-		std::istringstream iss(code);
-		std::string line;
-		while (std::getline(iss, line)) {
-			lines.push_back(line);
-		}
-
-		/* 转义首屏内容 */
-		int actual_lines = std::min(total_lines, first_screen_lines);
-		std::vector<std::string> lines_html;
-		for (int i = 0; i < actual_lines; i++) {
-			lines_html.push_back(escape_html(lines[i]));
-		}
-
-		json result;
-		result["success"] = true;
-		result["lines"] = lines_html;
-		result["totalLines"] = total_lines;
-		result["language"] = language;
-		result["content"] = code;
-		result["has_more"] = total_lines > first_screen_lines;
-		result["firstScreenLines"] = lines_html.size();
-
-		response.body = result.dump();
-	} catch (const std::exception &e) {
-		json result;
-		result["success"] = false;
-		result["error"] = e.what();
-		response.body = result.dump();
-	}
-
-	return response;
-}
-
-/**
- * WebServer::handle_get_remaining_highlight - 获取剩余高亮结果API
- * @path: 请求路径（未使用）
- * @headers: 请求头（未使用）
- * @body: JSON请求体，包含path、start_line字段
- *
- * 获取立即渲染后的剩余部分高亮结果。
- *
- * 返回: JSON响应，包含success、lines、startLine字段
- */
-HttpResponse WebServer::handle_get_remaining_highlight(
-	const std::string &path, const std::map<std::string, std::string> &headers,
-	const std::string &body)
-{
-	(void)path;
-	(void)headers;
-
-	HttpResponse response;
-	response.status_code = 200;
-	response.status_text = "OK";
-	response.headers["Content-Type"] = "application/json";
-
-	try {
-		json request = json::parse(body);
-		std::string file_path = request["path"];
-		int start_line = request["start_line"];
-
-		if (file_path.empty()) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Path parameter is required";
-			response.body = result.dump();
-			return response;
-		}
-
-		if (start_line < 0) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Invalid start_line";
-			response.body = result.dump();
-			return response;
-		}
-
-		/* 读取文件内容 */
-		std::string code;
-		bool read_success = file_manager->read_file(file_path, code);
-
-		if (!read_success) {
-			json result;
-			result["success"] = false;
-			result["error"] = "Failed to read file";
-			response.body = result.dump();
-			return response;
-		}
-
-		/* 自动检测语言 */
-		std::string language = detect_language_simple(file_path);
-
-		/* 分割代码为行 */
-		std::vector<std::string> lines;
-		std::istringstream iss(code);
-		std::string line;
-		while (std::getline(iss, line)) {
-			lines.push_back(line);
-		}
-
-		/* 获取剩余部分并转义 */
-		std::vector<std::string> lines_html;
-		for (size_t i = start_line; i < lines.size(); i++) {
-			lines_html.push_back(escape_html(lines[i]));
-		}
-
-		json result;
-		result["success"] = true;
-		result["lines"] = lines_html;
-		result["startLine"] = start_line;
-		result["language"] = language;
-
-		response.body = result.dump();
-	} catch (const std::exception &e) {
-		json result;
-		result["success"] = false;
-		result["error"] = e.what();
-		response.body = result.dump();
-	}
-
-	return response;
-}
-
 /*
  * ============================================================================
  * 辅助函数 - HTML 转义和语言检测
@@ -2415,16 +2021,552 @@ std::string WebServer::detect_language_simple(const std::string &filename)
 	return "plaintext";
 }
 
-/**
- * WebServer::highlight_code_simple - 简化的代码高亮函数（仅转义 HTML）
- *
- * 将代码内容转换为 HTML，仅进行 HTML 转义，不进行语法高亮。
- *
- * @code: 要处理的代码内容
- *
- * 返回值: 转义后的 HTML
+/*
+ * ============================================================================
+ * 高性能编辑器 API 实现（基于 TextBuffer 虚拟化渲染）
+ * ============================================================================
  */
-std::string WebServer::highlight_code_simple(const std::string &code)
+
+/**
+ * WebServer::handle_open_file_virtual - 使用虚拟化方式打开文件
+ *
+ * 使用 TextBuffer (Piece Table) 架构打开文件，支持大文件的高效编辑。
+ */
+HttpResponse WebServer::handle_open_file_virtual(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
 {
-	return escape_html(code);
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 检查是否已经打开
+		 */
+		{
+			std::lock_guard<std::mutex> lock(text_buffers_mutex);
+			auto it = text_buffers.find(file_path);
+			if (it != text_buffers.end()) {
+				/*
+							 * 文件已打开，直接返回信息
+							 */
+							json result;
+							result["success"] = true;
+							result["totalLines"] = it->second->get_line_count();
+							result["totalChars"] = it->second->get_char_count();
+							result["language"] = "plaintext";
+							response.body = result.dump();
+							return response;
+						}		}
+
+		/*
+		 * 创建新的 TextBuffer
+		 */
+		TextBuffer *buffer = new TextBuffer();
+
+		/*
+		 * 加载文件
+		 */
+		if (!buffer->load_file(file_path)) {
+			delete buffer;
+			json result;
+			result["success"] = false;
+			result["error"] = "Failed to load file";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 保存到 map
+		 */
+		{
+			std::lock_guard<std::mutex> lock(text_buffers_mutex);
+			text_buffers[file_path] = buffer;
+		}
+
+		json result;
+		result["success"] = true;
+		result["totalLines"] = buffer->get_line_count();
+		result["totalChars"] = buffer->get_char_count();
+		result["language"] = "plaintext";
+
+		response.body = result.dump();
+
+		std::cout << "虚拟打开文件成功: " << file_path << ", 行数: "
+			  << buffer->get_line_count() << std::endl;
+
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_get_lines - 获取指定行范围的内容
+ *
+ * 从 TextBuffer 中获取指定行范围的文本内容，用于虚拟滚动渲染。
+ */
+HttpResponse WebServer::handle_get_lines(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+		size_t start_line = request["start_line"];
+		size_t end_line = request["end_line"];
+
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 获取 TextBuffer
+		 */
+		TextBuffer *buffer = nullptr;
+		{
+			std::lock_guard<std::mutex> lock(text_buffers_mutex);
+			auto it = text_buffers.find(file_path);
+			if (it == text_buffers.end()) {
+				json result;
+				result["success"] = false;
+				result["error"] = "File not opened";
+				response.body = result.dump();
+				return response;
+			}
+			buffer = it->second;
+		}
+
+		/*
+		 * 获取行内容
+		 */
+		std::vector<std::string> lines;
+		if (!buffer->get_lines(start_line, end_line, lines)) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Failed to get lines";
+			response.body = result.dump();
+			return response;
+	}
+
+	/*
+		 * 返回结果
+		 */
+		json result;
+		result["success"] = true;
+		result["startLine"] = start_line;
+		result["endLine"] = end_line;
+		result["lines"] = json::array();
+		result["language"] = "plaintext";
+
+		for (const auto &line : lines) {
+			result["lines"].push_back(line);
+		}
+
+		response.body = result.dump();
+
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_get_line_count - 获取总行数
+ *
+ * 获取当前打开文件的总行数。
+ */
+HttpResponse WebServer::handle_get_line_count(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 获取 TextBuffer
+		 */
+		TextBuffer *buffer = nullptr;
+		{
+			std::lock_guard<std::mutex> lock(text_buffers_mutex);
+			auto it = text_buffers.find(file_path);
+			if (it == text_buffers.end()) {
+				json result;
+				result["success"] = false;
+				result["error"] = "File not opened";
+				response.body = result.dump();
+				return response;
+			}
+			buffer = it->second;
+		}
+
+		/*
+		 * 获取行数
+		 */
+		size_t line_count = buffer->get_line_count();
+
+		json result;
+		result["success"] = true;
+		result["totalLines"] = line_count;
+
+		response.body = result.dump();
+
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_edit_insert - 插入文本
+ *
+ * 在指定位置插入文本到 TextBuffer 中。
+ */
+HttpResponse WebServer::handle_edit_insert(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+		size_t position = request["position"];
+		std::string text = request["text"];
+
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 获取 TextBuffer
+		 */
+		TextBuffer *buffer = nullptr;
+		{
+			std::lock_guard<std::mutex> lock(text_buffers_mutex);
+			auto it = text_buffers.find(file_path);
+			if (it == text_buffers.end()) {
+				json result;
+				result["success"] = false;
+				result["error"] = "File not opened";
+				response.body = result.dump();
+				return response;
+			}
+			buffer = it->second;
+		}
+
+		/*
+		 * 插入文本
+		 */
+		if (!buffer->insert(position, text)) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Failed to insert text";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 返回结果
+		 */
+		json result;
+		result["success"] = true;
+		result["newTotalLines"] = buffer->get_line_count();
+
+		response.body = result.dump();
+
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_edit_delete - 删除文本范围
+ *
+ * 删除指定范围的文本。
+ */
+HttpResponse WebServer::handle_edit_delete(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+		size_t start_position = request["start_position"];
+		size_t end_position = request["end_position"];
+
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 获取 TextBuffer
+		 */
+		TextBuffer *buffer = nullptr;
+		{
+			std::lock_guard<std::mutex> lock(text_buffers_mutex);
+			auto it = text_buffers.find(file_path);
+			if (it == text_buffers.end()) {
+				json result;
+				result["success"] = false;
+				result["error"] = "File not opened";
+				response.body = result.dump();
+				return response;
+			}
+			buffer = it->second;
+		}
+
+		/*
+		 * 删除文本
+		 */
+		if (!buffer->delete_range(start_position, end_position)) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Failed to delete text";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 返回结果
+		 */
+		json result;
+		result["success"] = true;
+		result["newTotalLines"] = buffer->get_line_count();
+
+		response.body = result.dump();
+
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_edit_replace - 替换文本范围
+ *
+ * 将指定范围的文本替换为新文本。
+ */
+HttpResponse WebServer::handle_edit_replace(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+		size_t start_position = request["start_position"];
+		size_t end_position = request["end_position"];
+		std::string text = request["text"];
+
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 获取 TextBuffer
+		 */
+		TextBuffer *buffer = nullptr;
+		{
+			std::lock_guard<std::mutex> lock(text_buffers_mutex);
+			auto it = text_buffers.find(file_path);
+			if (it == text_buffers.end()) {
+				json result;
+				result["success"] = false;
+				result["error"] = "File not opened";
+				response.body = result.dump();
+				return response;
+			}
+			buffer = it->second;
+		}
+
+		/*
+		 * 替换文本
+		 */
+		if (!buffer->replace(start_position, end_position, text)) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Failed to replace text";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 返回结果
+		 */
+		json result;
+		result["success"] = true;
+		result["newTotalLines"] = buffer->get_line_count();
+
+		response.body = result.dump();
+
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_close_file_virtual - 关闭虚拟文件
+ *
+ * 关闭并释放 TextBuffer 资源。
+ */
+HttpResponse WebServer::handle_close_file_virtual(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string file_path = request["path"];
+
+		if (file_path.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Path parameter is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/*
+		 * 查找并删除 TextBuffer
+		 */
+		bool found = false;
+		{
+			std::lock_guard<std::mutex> lock(text_buffers_mutex);
+			auto it = text_buffers.find(file_path);
+			if (it != text_buffers.end()) {
+				delete it->second;
+				text_buffers.erase(it);
+				found = true;
+			}
+		}
+
+		json result;
+		result["success"] = found;
+
+		if (found) {
+			std::cout << "关闭虚拟文件: " << file_path << std::endl;
+		}
+
+		response.body = result.dump();
+
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
 }

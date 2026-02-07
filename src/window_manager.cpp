@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.5(stable) - 窗口管理器实现
+ * Mikufy v2.7-nova - 窗口管理器实现
  *
  * 本文件实现了GTK4窗口和WebKit WebView的创建与管理。
  * 主要功能包括：

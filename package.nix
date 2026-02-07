@@ -1,11 +1,11 @@
-# Mikufy v2.5(stable)
+# Mikufy v2.7-nova
 # 作者 luozenan
 
 { pkgs ? import <nixpkgs> { system = "x86_64-linux"; },lib }:
 
 pkgs.stdenv.mkDerivation rec {
   pname = "mikufy";
-  version = "2.2";
+  version = "v2.7-nova";
 
 src = lib.fileset.toSource {
             root = ./.;
@@ -22,7 +22,6 @@ src = lib.fileset.toSource {
             pkg-config     
           ];
 
-          
           buildInputs = with pkgs; [
             webkitgtk_6_0   
             gtk4            
@@ -31,7 +30,7 @@ src = lib.fileset.toSource {
           ];
 
           buildPhase = ''
-            g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic $(pkg-config --cflags webkitgtk-6.0 gtk4) $(pkg-config --cflags nlohmann_json) -Iheaders src/main.cpp src/file_manager.cpp src/web_server.cpp src/window_manager.cpp -o mikufy $(pkg-config --libs webkitgtk-6.0 gtk4) -lmagic $(pkg-config --libs nlohmann_json)
+            g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic $(pkg-config --cflags webkitgtk-6.0 gtk4) $(pkg-config --cflags nlohmann_json) -Iheaders src/main.cpp src/file_manager.cpp src/web_server.cpp src/window_manager.cpp src/text_buffer.cpp -o mikufy $(pkg-config --libs webkitgtk-6.0 gtk4) -lmagic $(pkg-config --libs nlohmann_json)
   
           '';
 

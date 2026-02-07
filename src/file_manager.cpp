@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.5(stable) - 文件管理器实现
+ * Mikufy v2.7-nova - 文件管理器实现
  *
  * 本文件实现了FileManager类的所有方法，提供完整的文件系统操作功能。
  * FileManager封装了底层的文件操作API，提供线程安全的接口，并使用

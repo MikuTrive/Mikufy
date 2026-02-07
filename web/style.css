@@ -1,5 +1,5 @@
 /**
- * Mikufy v2.5(stable) - 代码编辑器样式表
+ * Mikufy v2.7-nova - 代码编辑器样式表
  *
  * 本文件定义了Mikufy代码编辑器的所有样式
  *
@@ -20,7 +20,7 @@
  *   - 代码编辑：'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace
  *
  * 作者：MikuTrive
- * 版本：v2.5(stable)
+ * 版本：v2.7-nova
  * 许可证：详见 LICENSE 文件
  */
 
@@ -54,7 +54,7 @@ html, body {
  * 使用壁纸作为背景，设置不透明度为0.65，确保内容可读性
  */
 body {
-    background-image: url('Background/index-17.png');
+    background-image: url('Background/index-16.png');
     background-size: cover;        /* 背景图片覆盖整个容器 */
     background-position: center;   /* 背景图片居中显示 */
     background-repeat: no-repeat;  /* 背景图片不重复 */
@@ -582,126 +582,6 @@ body {
 /* ==========================================================================
  * 语法高亮样式
  * ========================================================================== */
-
-/**
- * 语法高亮 - 关键字
- * 颜色：蓝色加粗
- * 适用于：if、else、for、while、return等关键字
- */
-.syntax-keyword {
-    color: #569cd6;
-    font-weight: bold;
-}
-
-/**
- * 语法高亮 - 字符串
- * 颜色：橙红色
- * 适用于：单引号、双引号、模板字符串
- */
-.syntax-string {
-    color: #ce9178;
-}
-
-/**
- * 语法高亮 - 数字
- * 颜色：浅绿色
- * 适用于：整数、浮点数、科学计数法
- */
-.syntax-number {
-    color: #b5cea8;
-}
-
-/**
- * 语法高亮 - 注释
- * 颜色：绿色斜体
- * 适用于：单行注释（//）、多行注释（/* *\/）
- */
-.syntax-comment {
-    color: #6a9955;
-    font-style: italic;
-}
-
-/**
- * 语法高亮 - 函数
- * 颜色：黄色
- * 适用于：函数定义和函数调用
- */
-.syntax-function {
-    color: #dcdcaa;
-}
-
-/**
- * 语法高亮 - 运算符
- * 颜色：浅灰色
- * 适用于：+、-、*、/、=、==、!=等运算符
- */
-.syntax-operator {
-    color: #d4d4d4;
-}
-
-/**
- * 语法高亮 - 宏定义
- * 颜色：紫色
- * 适用于：C/C++宏定义、常量
- */
-.syntax-macro {
-    color: #c586c0;
-}
-
-/**
- * 语法高亮 - 包含指令
- * 颜色：紫色
- * 适用于：#include等预处理指令
- */
-.syntax-include {
-    color: #c586c0;
-}
-
-/**
- * 语法高亮 - 结构体/类名
- * 颜色：青色
- * 适用于：struct、class定义
- */
-.syntax-struct {
-    color: #4ec9b0;
-}
-
-/**
- * 语法高亮 - 预处理指令
- * 颜色：紫色
- * 适用于：#define、#ifdef、#pragma等
- */
-.syntax-preprocessor {
-    color: #c586c0;
-}
-
-/**
- * 语法高亮 - 类型/类名
- * 颜色：青色
- * 适用于：类名、接口名、类型别名
- */
-.syntax-type {
-    color: #4ec9b0;
-    font-weight: bold;
-}
-
-/**
- * 语法高亮 - 属性访问
- * 颜色：浅蓝色
- * 适用于：对象属性访问
- */
-.syntax-property {
-    color: #9cdcfe;
-}
-
-/**
- * 语法高亮 - 注解/装饰器
- * 颜色：粉色
- * 适用于：Java注解、Python装饰器
- */
-.syntax-annotation {
-    color: #d7ba7d;
-}
 
 #code-editor:focus {
     outline: none;
@@ -1433,4 +1313,103 @@ body {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
     }
+}
+
+/* ============================================================================
+ * 高性能虚拟编辑器样式
+ * ============================================================================
+ */
+
+/**
+ * 虚拟编辑器容器
+ * 位置：覆盖在原有编辑器容器之上
+ * 布局：相对定位
+ */
+.virtual-editor {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/**
+ * 编辑器滚动容器
+ * 功能：处理滚动事件
+ * 布局：绝对定位，占据整个容器
+ */
+.editor-scroll-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 100, 120, 0.8) rgba(30, 30, 40, 1.0);
+}
+
+/* WebKit 滚动条样式 */
+.editor-scroll-container::-webkit-scrollbar {
+    width: 14px;
+}
+
+.editor-scroll-container::-webkit-scrollbar-track {
+    background-color: rgba(30, 30, 40, 1.0);
+}
+
+.editor-scroll-container::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 100, 120, 0.8);
+    border-radius: 7px;
+    min-height: 30px;
+}
+
+.editor-scroll-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(120, 120, 140, 1.0);
+}
+
+/**
+ * Spacer（撑开滚动高度）
+ * 功能：提供虚拟滚动的滚动高度
+ * 布局：块级元素，高度由 JavaScript 动态设置
+ */
+.editor-spacer {
+    width: 1px;
+    height: 0px;
+    pointer-events: none;
+}
+
+/**
+ * Canvas 编辑器层
+ * 功能：绘制文本内容
+ * 布局：绝对定位，固定在视口中
+ */
+.editor-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    pointer-events: auto;
+    cursor: text;
+}
+
+/**
+ * 行号层
+ * 功能：绘制行号
+ * 布局：绝对定位，固定在左侧
+ */
+.editor-line-numbers {
+    left: 0;
+    z-index: 10;
+    background-color: rgba(128, 128, 128, 0.8);
+}
+
+/**
+ * 文本层
+ * 功能：绘制文本内容
+ * 布局：绝对定位，位于行号层右侧
+ */
+#text-layer {
+    left: 50px;
+    z-index: 20;
 }

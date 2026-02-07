@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.5(stable) - 主头文件
+ * Mikufy v2.7-nova - 主头文件
  *
  * 这是Mikufy代码编辑器的主头文件，包含所有必要的头文件包含、
  * 全局常量定义、数据结构声明和类型定义。该文件作为整个项目
@@ -95,7 +95,7 @@ using json = nlohmann::json;
 #define MIKUFY_NAME		"Mikufy"
 
 /* 当前版本号 */
-#define MIKUFY_VERSION		"2.5(stable)"
+#define MIKUFY_VERSION		"v2.7-nova"
 
 /*
  * ============================================================================
@@ -110,7 +110,7 @@ using json = nlohmann::json;
 #define WINDOW_HEIGHT		900
 
 /* 窗口标题文本 */
-#define WINDOW_TITLE		"Mikufy v2.5(stable) - 代码编辑器"
+#define WINDOW_TITLE		"Mikufy v2.7-nova - 代码编辑器"
 
 /*
  * ============================================================================

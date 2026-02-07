@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Mikufy v2.5(stable) - 安装脚本
+# Mikufy v2.7-nova - 安装脚本
 # 适用于所有Linux发行版用户的系统
 # 支持系统级安装（需要sudo）和用户级安装（无需sudo）
 #
@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-VERSION="2.5(stable)"
+VERSION="v2.7-nova"
 APP_NAME="mikufy"
 EXECUTABLE="${APP_NAME}"
 WEB_DIR="web"
@@ -102,10 +102,10 @@ check_files() {
 install_user() {
     print_info "开始用户级安装..."
 
-    # 定义安装路径
+    # 定义安装路径（使用大写 MIKUFY）
     INSTALL_DIR="${HOME}/.local"
     BIN_DIR="${INSTALL_DIR}/bin"
-    APP_DIR="${INSTALL_DIR}/share/${APP_NAME}"
+    APP_DIR="${INSTALL_DIR}/share/MIKUFY"
     ICONS_DIR="${INSTALL_DIR}/share/icons/hicolor/256x256/apps"
 
     # 创建目录
@@ -118,15 +118,17 @@ install_user() {
     print_info "安装可执行文件和web目录到 ${APP_DIR}..."
     cp "${EXECUTABLE}" "${APP_DIR}/"
     chmod +x "${APP_DIR}/${EXECUTABLE}"
-    cp -r "${WEB_DIR}" "${APP_DIR}/"
+    mkdir -p "${APP_DIR}/web"
+    cp -r "${WEB_DIR}"/* "${APP_DIR}/web/"
     chmod -R 755 "${APP_DIR}/web"
-    print_success "可执行文件和web目录已安装"
+    /* 确保 style.css 有写权限 */
+    chmod 644 "${APP_DIR}/web/style.css"
+    print_success "可执行文件和web目录已安装（包含 Background 和 Icons）"
 
-    # 创建启动包装脚本
+    # 创建启动包装脚本（直接执行可执行文件，不需要cd）
     print_info "创建启动脚本到 ${BIN_DIR}..."
     cat > "${BIN_DIR}/${APP_NAME}" << EOF
 #!/bin/bash
-cd "${APP_DIR}"
 exec "${APP_DIR}/${EXECUTABLE}" "\$@"
 EOF
     chmod +x "${BIN_DIR}/${APP_NAME}"
@@ -167,6 +169,8 @@ EOF
     echo "  应用目录:   ${APP_DIR}"
     echo "  可执行文件: ${APP_DIR}/${EXECUTABLE}"
     echo "  Web资源:    ${APP_DIR}/web"
+    echo "    - Background: ${APP_DIR}/web/Background/"
+    echo "    - Icons: ${APP_DIR}/web/Icons/"
     echo "  应用图标:   ${ICONS_DIR}/${APP_NAME}.png"
     echo ""
     print_info "使用方法:"
@@ -204,15 +208,17 @@ install_system() {
     print_info "安装可执行文件和web目录到 ${APP_DIR}..."
     cp "${EXECUTABLE}" "${APP_DIR}/"
     chmod +x "${APP_DIR}/${EXECUTABLE}"
-    cp -r "${WEB_DIR}" "${APP_DIR}/"
+    mkdir -p "${APP_DIR}/web"
+    cp -r "${WEB_DIR}"/* "${APP_DIR}/web/"
     chmod -R 755 "${APP_DIR}/web"
-    print_success "可执行文件和web目录已安装"
+    /* 确保 style.css 有写权限 */
+    chmod 644 "${APP_DIR}/web/style.css"
+    print_success "可执行文件和web目录已安装（包含 Background 和 Icons）"
 
-    # 创建启动包装脚本
+    # 创建启动包装脚本（直接执行可执行文件，不需要cd）
     print_info "创建启动脚本到 ${BIN_DIR}..."
     cat > "${BIN_DIR}/${APP_NAME}" << EOF
 #!/bin/bash
-cd "${APP_DIR}"
 exec "${APP_DIR}/${EXECUTABLE}" "\$@"
 EOF
     chmod +x "${BIN_DIR}/${APP_NAME}"
@@ -257,6 +263,8 @@ EOF
     echo "  应用目录:   ${APP_DIR}"
     echo "  可执行文件: ${APP_DIR}/${EXECUTABLE}"
     echo "  Web资源:    ${APP_DIR}/web"
+    echo "    - Background: ${APP_DIR}/web/Background/"
+    echo "    - Icons: ${APP_DIR}/web/Icons/"
     echo "  应用图标:   ${ICONS_DIR}/${APP_NAME}.png"
     echo ""
     print_info "使用方法:"
