@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.7-nova - Web服务器头文件
+ * Mikufy v2.11-nova - Web服务器头文件
  *
  * 本文件定义了WebServer类的接口，该类负责提供HTTP服务和
  * 处理前端请求。WebServer实现了完整的HTTP/1.1服务器功能，
@@ -47,6 +47,10 @@
 #include "main.h"		/* 全局定义和数据结构 */
 #include "file_manager.h"	/* FileManager文件管理器类 */
 #include "text_buffer.h"		/* 文本缓冲区类 */
+#include "terminal_manager.h"	/* TerminalManager终端管理器类 */
+#include <unistd.h>		/* fork(), pipe(), dup2() */
+#include <sys/wait.h>		/* waitpid(), WIFEXITED() */
+#include <signal.h>		/* kill(), SIGTERM */
 
 /* 网络编程头文件 */
 #include <sys/socket.h>		/* socket(), bind(), listen() */
@@ -205,6 +209,9 @@ private:
 
 	/* HTTP路由表（URL路径 -> 处理函数） */
 	std::map<std::string, HttpHandler> routes;
+
+	/* 终端管理器 */
+	std::unique_ptr<TerminalManager> terminal_manager;	/* 终端管理器指针 */
 
 	/* 高性能编辑器相关 */
 	std::unordered_map<std::string, TextBuffer *> text_buffers;	/* 文件路径 -> TextBuffer 映射 */
@@ -473,6 +480,22 @@ private:
 			const std::string &body);
 
 	/**
+	 * handle_refresh_directory - 处理增量刷新目录API
+	 *
+	 * 只刷新指定目录的内容，用于智能刷新功能。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含directory字段
+	 *
+	 * 返回: JSON响应，包含success、directory、files字段
+	 */
+	HttpResponse handle_refresh_directory(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
 	 * handle_change_wallpaper - 处理更换壁纸API
 	 *
 	 * 更换编辑器背景壁纸。
@@ -611,6 +634,97 @@ private:
 			const std::string &body);
 
 	/* ====================================================================
+	 * 私有方法 - 终端 API
+	 * ==================================================================== */
+
+	/**
+	 * handle_terminal_info - 处理获取终端信息API
+	 *
+	 * 获取当前用户名、主机名和当前路径信息。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含path字段
+	 *
+	 * 返回: JSON响应，包含success、user、hostname、path、isRoot字段
+	 */
+	HttpResponse handle_terminal_info(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_terminal_execute - 处理执行终端命令API
+	 *
+	 * 在指定路径下执行shell命令。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含command和path字段
+	 *
+	 * 返回: JSON响应，包含success、output、error、newPath、isRoot字段
+	 */
+	HttpResponse handle_terminal_execute(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_terminal_get_output - 获取交互式进程的输出
+	 *
+	 * 获取指定进程的标准输出和标准错误输出。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含pid字段
+	 *
+	 * 返回: JSON响应，包含success、output、error、is_running字段
+	 */
+	HttpResponse handle_terminal_get_output(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_terminal_send_input - 向交互式进程发送输入
+	 *
+	 * 向正在运行的进程发送输入数据。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含pid和input字段
+	 *
+	 * 返回: JSON响应，包含success字段
+	 */
+	HttpResponse handle_terminal_send_input(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * handle_terminal_kill_process - 终止交互式进程
+	 *
+	 * 终止指定的交互式进程。
+	 *
+	 * @path: 请求路径（未使用）
+	 * @headers: 请求头（未使用）
+	 * @body: JSON请求体，包含pid字段
+	 *
+	 * 返回: JSON响应，包含success字段
+	 */
+	HttpResponse handle_terminal_kill_process(
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body);
+
+	/**
+	 * cleanup_finished_processes - 清理已完成的进程
+	 *
+	 * 检查所有活动进程的状态，清理已完成的进程。
+	 */
+	void cleanup_finished_processes(void);
+
+	/* ====================================================================
 	 * 私有方法 - 静态文件服务
 	 * ==================================================================== */
 
@@ -673,6 +787,30 @@ private:
 	 * 返回值: 检测到的语言名称
 	 */
 	std::string detect_language_simple(const std::string &filename);
+
+	/**
+	 * should_refresh_after_command - 判断命令执行后是否需要刷新文件树
+	 *
+	 * 检测命令是否是文件操作或编译命令，如果是则返回true。
+	 * 这用于自动刷新文件树功能。
+	 *
+	 * @command: 要检测的命令字符串
+	 *
+	 * 返回值: 需要刷新返回true，否则返回false
+	 */
+	bool should_refresh_after_command(const std::string &command);
+
+	/**
+	 * expand_path - 展开路径中的特殊符号
+	 *
+	 * 处理路径中的~（家目录）、.（当前目录）、..（上级目录）等特殊符号。
+	 *
+	 * @path: 要展开的路径
+	 * @base_dir: 基准目录（用于解析相对路径）
+	 *
+	 * 返回值: 展开后的绝对路径，失败返回空字符串
+	 */
+	std::string expand_path(const std::string &path, const std::string &base_dir);
 };
 
 #endif /* MIKUFY_WEB_SERVER_H */

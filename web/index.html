@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
- * Mikufy v2.7-nova - 代码编辑器前端页面
+ * Mikufy v2.11-nova - 代码编辑器前端页面
  *
  * 这是一个基于Web的代码编辑器界面，支持文件浏览、多标签页编辑、
  * 语法高亮、媒体文件预览等功能。
@@ -13,7 +13,7 @@
  *   - 弹窗组件：右键菜单、新建对话框、壁纸选择、消息弹窗
  *
  * 作者：MikuTrive
- * 版本：v2.7-nova
+ * 版本：v2.11-nova
  * 许可证：详见 LICENSE 文件
  -->
 <html lang="zh-CN">
@@ -23,7 +23,7 @@
     <!-- 视口设置：确保在移动设备上正确显示 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- 页面标题 -->
-    <title>Mikufy v2.7-nova - Code Editor</title>
+    <title>Mikufy v2.11-nova - Code Editor</title>
     <!-- 加载样式表 -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -96,6 +96,10 @@
                 <!-- 设置按钮 -->
                 <button id="btn-settings" title="设置">
                     <img src="Icons/Setting.svg" alt="设置">
+                </button>
+                <!-- 打开终端按钮 -->
+                <button id="btn-terminal" title="打开终端">
+                    <img src="Icons/Terminal.svg" alt="终端">
                 </button>
             </div>
 
@@ -184,6 +188,16 @@
                 <!-- 垂直滚动条 -->
                 <div id="vertical-scrollbar">
                     <div id="vertical-scrollbar-thumb"></div>
+                </div>
+            </div>
+
+            <!-- 终端视图区域 -->
+            <div id="terminal-view">
+                <!-- 终端高度调整横条 -->
+                <div id="terminal-resize-handle"></div>
+                <!-- 终端内容区域 -->
+                <div id="terminal-content">
+                    <!-- 提示符和输出将通过JavaScript动态生成 -->
                 </div>
             </div>
         </div>

@@ -1,5 +1,5 @@
 /**
- * Mikufy v2.7-nova - 代码编辑器前端JavaScript
+ * Mikufy v2.11-nova - 代码编辑器前端JavaScript
  *
  * 本文件处理所有前端交互逻辑，通过C++后端API与系统交互
  *
@@ -18,7 +18,7 @@
  *   - 函数模块：按功能划分的函数集合
  *
  * 作者：MikuTrive
- * 版本：v2.7-nova
+ * 版本：v2.11-nova
  * 许可证：详见 LICENSE 文件
  */
 
@@ -58,6 +58,17 @@ const AppState = {
     newDialogType: null,
     // 加载状态标志（防止重复加载）
     isLoading: false,
+    // 终端相关状态
+    terminalVisible: false,       // 终端是否可见
+    terminalPath: null,           // 终端当前路径
+    terminalUser: null,           // 终端用户名
+    terminalHostname: null,       // 终端主机名
+    terminalIsRoot: false,        // 是否为root用户
+    terminalCommandHistory: [],   // 命令历史
+    terminalHistoryIndex: -1,     // 命令历史索引
+    terminalHeight: 126,          // 终端高度（默认为6个行数高度）
+    terminalCurrentPid: null,     // 当前活动进程的ID
+    terminalPollInterval: null,   // 轮询进程输出的定时器
     // 图标映射表（根据文件扩展名映射到对应的图标文件）
     // 键：文件扩展名，值：图标文件名
     iconMap: {
@@ -540,7 +551,143 @@ const BackendAPI = {
      *     console.log(result.html);
      * }
      */
-    };
+
+    /**
+     * 获取终端信息
+     *
+     * 获取当前用户名、主机名和当前路径信息
+     *
+     * @async
+     * @param {string} path 终端路径（可选）
+     * @returns {Promise<Object>} 终端信息对象，包含：
+     *   - success {boolean}: 是否成功
+     *   - user {string}: 用户名
+     *   - hostname {string}: 主机名
+     *   - path {string}: 当前路径
+     *   - isRoot {boolean}: 是否为root用户
+     * @throws {Error} 网络请求失败时抛出错误
+     */
+    async getTerminalInfo(path) {
+        try {
+            const response = await fetch('/api/terminal-info', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ path: path || AppState.terminalPath })
+            });
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('获取终端信息失败:', error);
+            return { success: false, user: '', hostname: '', path: '', isRoot: false };
+        }
+    },
+
+    /**
+     * 执行终端命令
+     *
+     * 在指定路径下执行shell命令
+     *
+     * @async
+     * @param {string} command 要执行的命令
+     * @param {string} path 执行路径
+     * @returns {Promise<Object>} 执行结果对象，包含：
+     *   - success {boolean}: 是否成功
+     *   - output {string}: 命令输出
+     *   - error {string}: 错误信息
+     * @throws {Error} 网络请求失败时抛出错误
+     */
+    async executeCommand(command, path, interrupt = false) {
+        try {
+            const response = await fetch('/api/terminal-execute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ command, path: path || AppState.terminalPath, interrupt })
+            });
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('执行命令失败:', error);
+            return { success: false, output: '', error: error.message };
+        }
+    },
+
+    /**
+     * 获取交互式进程的输出
+     *
+     * @async
+     * @param {number} pid 进程ID
+     * @returns {Promise<Object>} 包含 success, output, is_running, pid 的对象
+     */
+    async getProcessOutput(pid) {
+        try {
+            const response = await fetch('/api/terminal-get-output', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pid })
+            });
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('获取进程输出失败:', error);
+            return { success: false, output: '', is_running: false, pid };
+        }
+    },
+
+    /**
+     * 向交互式进程发送输入
+     *
+     * @async
+     * @param {number} pid 进程ID
+     * @param {string} input 输入内容
+     * @returns {Promise<Object>} 包含 success 的对象
+     */
+    async sendProcessInput(pid, input) {
+        try {
+            const response = await fetch('/api/terminal-send-input', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pid, input })
+            });
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('发送进程输入失败:', error);
+            return { success: false };
+        }
+    },
+
+    /**
+     * 终止交互式进程
+     *
+     * @async
+     * @param {number} pid 进程ID
+     * @returns {Promise<Object>} 包含 success 的对象
+     */
+    async killProcess(pid) {
+        try {
+            const response = await fetch('/api/terminal-kill-process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pid })
+            });
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('终止进程失败:', error);
+            return { success: false };
+        }
+    }
+};
 // ============================================================================
 // DOM元素引用缓存
 // ============================================================================
@@ -559,6 +706,7 @@ const DOM = {
     btnNewFolder: null,       // 新建文件夹按钮
     btnNewFile: null,         // 新建文件按钮
     btnSettings: null,        // 设置按钮
+    btnTerminal: null,        // 打开终端按钮
 
     // 路径显示区域
     currentPath: null,        // 当前路径显示文本元素
@@ -578,6 +726,11 @@ const DOM = {
     verticalScrollbar: null,  // 垂直滚动条
     verticalScrollbarThumb: null, // 垂直滚动条滑块
     editorContainer: null,    // 编辑器主容器
+
+    // 终端区域
+    terminalView: null,       // 终端视图容器
+    terminalContent: null,    // 终端内容区域
+    terminalResizeHandle: null, // 终端高度调整横条
 
     // 右键菜单
     contextMenu: null,        // 右键菜单容器
@@ -652,6 +805,7 @@ function initDOM() {
     DOM.btnNewFolder = document.getElementById('btn-new-folder');
     DOM.btnNewFile = document.getElementById('btn-new-file');
     DOM.btnSettings = document.getElementById('btn-settings');
+    DOM.btnTerminal = document.getElementById('btn-terminal');
     DOM.currentPath = document.getElementById('current-path');
     DOM.btnBack = document.getElementById('btn-back');
     DOM.fileTree = document.getElementById('file-tree');
@@ -662,6 +816,9 @@ function initDOM() {
     DOM.codeEditor = document.getElementById('code-editor');
     DOM.verticalScrollbar = document.getElementById('vertical-scrollbar');
     DOM.verticalScrollbarThumb = document.getElementById('vertical-scrollbar-thumb');
+    DOM.terminalView = document.getElementById('terminal-view');
+    DOM.terminalContent = document.getElementById('terminal-content');
+    DOM.terminalResizeHandle = document.getElementById('terminal-resize-handle');
 
     console.log('[initDOM] DOM.lineNumbers 元素:', DOM.lineNumbers);
     console.log('[initDOM] DOM.codeEditor 元素:', DOM.codeEditor);
@@ -681,13 +838,18 @@ function initDOM() {
     DOM.messageDialogMessage = document.getElementById('message-dialog-message');
     DOM.messageDialogOk = document.getElementById('message-dialog-ok');
     DOM.messageDialogClose = document.getElementById('message-dialog-close');
-    
+
     // 通知栏元素
     DOM.notification = document.getElementById('notification');
     if (DOM.notification) {
         DOM.notificationText = DOM.notification.querySelector('.notification-text');
     } else {
         DOM.notificationText = null;
+    }
+
+    // 默认禁用终端按钮
+    if (DOM.btnTerminal) {
+        DOM.btnTerminal.disabled = true;
     }
 }
 
@@ -933,6 +1095,11 @@ async function openFileTab(path, name) {
 
     // 渲染标签页
     renderTabs();
+
+    // 启用终端按钮
+    if (DOM.btnTerminal) {
+        DOM.btnTerminal.disabled = false;
+    }
 }
 
 /**
@@ -1753,8 +1920,14 @@ function updateLineNumbers(content)
 
 	// 从内容计算行数（这是最准确的方法）
 	if (editorContent) {
+		// 移除末尾的空换行符（如果末尾只有换行符）
+		let trimmedContent = editorContent;
+		while (trimmedContent.endsWith('\n') && trimmedContent.length > 0) {
+			trimmedContent = trimmedContent.slice(0, -1);
+		}
+		
 		// 计算换行符数量，行数 = 换行符数量 + 1
-		const newLineCount = (editorContent.match(/\n/g) || []).length;
+		const newLineCount = (trimmedContent.match(/\n/g) || []).length;
 		lines = newLineCount + 1;
 	} else {
 		// 空内容，至少显示1行
@@ -2403,7 +2576,12 @@ function initEventListeners() {
     DOM.btnSettings.onclick = () => {
         showSettingsPage();
     };
-    
+
+    // 终端按钮
+    DOM.btnTerminal.onclick = () => {
+        toggleTerminal();
+    };
+
     // 返回按钮
     DOM.btnBack.onclick = goBack;
     
@@ -2690,38 +2868,24 @@ function initEventListeners() {
             return;
         }
 
-        // 清除之前的防抖定时器
-        if (DOM.codeEditor._inputDebounceTimer) {
-            clearTimeout(DOM.codeEditor._inputDebounceTimer);
-        }
+        // 立即更新行数，不使用防抖
+        if (AppState.activeTab >= 0 && AppState.activeTab < AppState.openTabs.length) {
+            const tab = AppState.openTabs[AppState.activeTab];
+            if (!tab.isAbout && !tab.isSettings) {
+                // 立即获取内容并更新行数
+                const content = getEditorContent();
+                const newLines = content.split('\n');
 
-        // 使用更短的防抖（20ms），使行号更新更加即时
-        DOM.codeEditor._inputDebounceTimer = setTimeout(() => {
-            if (AppState.activeTab >= 0 && AppState.activeTab < AppState.openTabs.length) {
-                const tab = AppState.openTabs[AppState.activeTab];
-                if (!tab.isAbout && !tab.isSettings) {
-                    // 性能优化：对于使用虚拟滚动的大文件，使用缓存更新
-                    if (tab.isVirtualScroll && tab.rawContent) {
-                        // 不需要遍历DOM，使用缓存内容
-                        // 虚拟滚动模式下，编辑只在可见区域，使用缓存更新
-                        updateVirtualScrollContent(tab);
-                    } else {
-                        // 非虚拟滚动模式：从DOM获取内容
-                        const content = getEditorContent();
-                        const newLines = content.split('\n');
+                // 更新标签页内容和行数
+                tab.content = content;
+                tab.rawContent = content;
+                tab.lines = newLines;
+                AppState.contentCache.set(tab.path, content);
 
-                        // 更新标签页内容和行数
-                        tab.content = content;
-                        tab.rawContent = content;
-                        tab.lines = newLines;
-                        AppState.contentCache.set(tab.path, content);
-
-                        // 每次输入都更新行号，确保行号和内容同步
-                        updateLineNumbers(content);
-                    }
-                }
+                // 立即更新行号，确保行号和内容同步
+                updateLineNumbers(content);
             }
-        }, 20); // 20ms 防抖延迟，使行号更新更加即时
+        }
     };
 
 /**
@@ -2833,58 +2997,55 @@ function updateVirtualScrollContent(tab) {
  * 返回: 完整的编辑器内容字符串
  */
 function getEditorContent() {
-    // 遍历编辑器的所有子节点，正确处理换行
-    let content = '';
-    const childNodes = DOM.codeEditor.childNodes;
-
-    console.log('=== getEditorContent ===');
-    console.log('子节点数量:', childNodes.length);
-
-    for (let i = 0; i < childNodes.length; i++) {
-        const node = childNodes[i];
+    // 递归获取节点的完整内容，保留所有空格和缩进
+    function getNodeContent(node) {
+        let content = '';
 
         if (node.nodeType === Node.TEXT_NODE) {
-            // 文本节点，直接添加内容
-            // 即使是空字符串也要添加，因为可能包含空格
-            const text = node.textContent || '';
-            content += text;
-            console.log('[' + i + '] 文本节点:', JSON.stringify(text), '长度:', text.length);
+            // 使用 nodeValue 获取文本节点的原始内容，保留所有空格
+            content = node.nodeValue || '';
         } else if (node.nodeType === Node.ELEMENT_NODE) {
             const tagName = node.tagName?.toLowerCase();
 
             // 忽略占位符元素（visibility: hidden）
             if (node.style && node.style.visibility === 'hidden') {
-                console.log('[' + i + '] 跳过隐藏元素:', tagName);
-                continue;
+                return '';
             }
 
             if (tagName === 'br') {
                 // <br> 标签表示换行
-                content += '\n';
-                console.log('[' + i + '] BR元素');
+                content = '\n';
             } else if (tagName === 'div' || tagName === 'p') {
                 // <div> 或 <p> 表示新的一行
-                // 先检查是否是空行（没有任何子节点或只有空白字符）
-                const divContent = node.textContent || '';
-                content += divContent;
-                // 添加换行符，即使 div 是空的也添加
-                content += '\n';
-                console.log('[' + i + '] DIV元素:', JSON.stringify(divContent), '长度:', divContent.length);
+                // 递归处理所有子节点
+                const childNodes = node.childNodes;
+                let lineContent = '';
+                for (let i = 0; i < childNodes.length; i++) {
+                    lineContent += getNodeContent(childNodes[i]);
+                }
+                // 总是添加换行符，即使 lineContent 为空
+                // 这样可以保留空行（包括只包含空格的行）
+                content = lineContent + '\n';
             } else {
-                // 其他元素（如果有），添加其文本内容
-                const text = node.textContent || '';
-                content += text;
-                console.log('[' + i + '] 其他元素:', tagName, JSON.stringify(text), '长度:', text.length);
+                // 其他元素，递归处理所有子节点
+                const childNodes = node.childNodes;
+                for (let i = 0; i < childNodes.length; i++) {
+                    content += getNodeContent(childNodes[i]);
+                }
             }
         }
+
+        return content;
     }
 
-    console.log('最终内容长度:', content.length);
-    console.log('换行符数量:', (content.match(/\n/g) || []).length);
-    console.log('内容预览:', content.substring(0, 300));
-    console.log('完整内容（前100字符）:', content.substring(0, 100).replace(/\n/g, '\\n'));
+    // 遍历编辑器的所有子节点
+    let content = '';
+    const childNodes = DOM.codeEditor.childNodes;
 
-    // 不再移除末尾的换行符，保留用户输入的所有空行
+    for (let i = 0; i < childNodes.length; i++) {
+        const node = childNodes[i];
+        content += getNodeContent(node);
+    }
 
     return content;
 }
@@ -2973,9 +3134,80 @@ async function handleSaveAll() {
  */
 async function handleRefresh() {
     await BackendAPI.refresh();
-    
+
     if (AppState.currentPath) {
         await loadDirectoryContents(AppState.currentPath);
+    }
+}
+
+/**
+ * 解析命令影响的目录
+ * @param {string} command - 执行的命令
+ * @param {string} basePath - 基准路径（终端当前路径）
+ * @returns {string[]} 受影响的目录列表
+ */
+function parseAffectedDirectories(command, basePath) {
+    const dirs = new Set();
+
+    // 解析命令中的路径参数
+    const pathRegex = /(?:mkdir|rm|touch|mv|cp|ln)\s+([^\s]+)/g;
+    let match;
+    while ((match = pathRegex.exec(command)) !== null) {
+        let path = match[1];
+        if (!path.startsWith('/')) {
+            path = basePath + '/' + path;
+        }
+        // 获取父目录
+        const parentPath = path.substring(0, path.lastIndexOf('/'));
+        dirs.add(parentPath);
+        dirs.add(path);
+    }
+
+    // 编译命令通常影响当前目录
+    if (command.includes(' build') || command.includes(' compile') || command.includes(' install')) {
+        dirs.add(basePath);
+    }
+
+    return Array.from(dirs);
+}
+
+/**
+ * 判断两个目录是否相关
+ * @param {string} dir1 - 目录1
+ * @param {string} dir2 - 目录2
+ * @returns {boolean} 是否相关
+ */
+function isRelatedDirectory(dir1, dir2) {
+    if (!dir1 || !dir2) return false;
+    // 规范化路径（去除末尾斜杠）
+    const d1 = dir1.endsWith('/') ? dir1.slice(0, -1) : dir1;
+    const d2 = dir2.endsWith('/') ? dir2.slice(0, -1) : dir2;
+    // 检查是否是相同目录或父子目录
+    return d1 === d2 || d1.startsWith(d2 + '/') || d2.startsWith(d1 + '/');
+}
+
+/**
+ * 智能刷新目录
+ * @param {string} command - 执行的命令
+ * @param {string} terminalPath - 终端路径
+ */
+async function smartRefresh(command, terminalPath) {
+    // 解析命令影响的目录
+    const affectedDirs = parseAffectedDirectories(command, terminalPath);
+
+    // 获取当前文件树路径
+    const currentTreePath = AppState.currentPath || AppState.currentDirectory;
+
+    // 判断是否需要刷新
+    for (const dir of affectedDirs) {
+        // 检查是否是当前目录或父/子目录
+        if (isRelatedDirectory(dir, currentTreePath)) {
+            // 只刷新当前显示的目录
+            if (currentTreePath) {
+                await loadDirectoryContents(currentTreePath);
+            }
+            break;
+        }
     }
 }
 
@@ -3054,7 +3286,7 @@ function init() {
     renderTabs();
     console.log('[init] 标签页渲染完成');
 
-    console.log('Mikufy v2.7-nova 初始化完成');
+    console.log('Mikufy v2.11-nova 初始化完成');
 }
 
 /**
@@ -3186,3 +3418,565 @@ window.onload = init;
 window.onbeforeunload = async () => {
     await handleSaveAll();
 };
+
+// ============================================================================
+// 终端功能相关函数
+// ============================================================================
+
+/**
+ * 打开终端
+ *
+ * 显示终端视图，初始化终端信息
+ */
+async function openTerminal() {
+    if (AppState.terminalVisible) {
+        return;
+    }
+
+    // 根据当前文件路径设置终端路径
+    if (AppState.currentPath && AppState.openTabs[AppState.activeTab]) {
+        const currentTab = AppState.openTabs[AppState.activeTab];
+        if (currentTab.path) {
+            // 获取文件所在目录
+            const pathParts = currentTab.path.split('/');
+            pathParts.pop(); // 移除文件名
+            AppState.terminalPath = pathParts.join('/') || '/';
+        }
+    } else if (AppState.currentDirectory) {
+        AppState.terminalPath = AppState.currentDirectory;
+    }
+
+    if (!AppState.terminalPath) {
+        AppState.terminalPath = '/';
+    }
+
+    // 获取终端信息
+    const terminalInfo = await BackendAPI.getTerminalInfo(AppState.terminalPath);
+    if (terminalInfo.success) {
+        AppState.terminalUser = terminalInfo.user;
+        AppState.terminalHostname = terminalInfo.hostname;
+        AppState.terminalPath = terminalInfo.path;
+        AppState.terminalIsRoot = terminalInfo.isRoot;
+    }
+
+    // 初始化终端高度（使用保存的高度或默认值）
+    const terminalHeight = AppState.terminalHeight || 126;
+    DOM.terminalView.style.height = `${terminalHeight}px`;
+
+    // 显示终端视图
+    DOM.terminalView.classList.add('visible');
+    DOM.btnTerminal.classList.add('active');
+    AppState.terminalVisible = true;
+
+    // 清空并初始化终端内容
+    DOM.terminalContent.innerHTML = '';
+    displayTerminalPrompt();
+
+    // 添加终端高度调整功能
+    initTerminalResize();
+}
+
+/**
+ * 关闭终端
+ *
+ * 隐藏终端视图，清理资源
+ */
+function closeTerminal() {
+    if (!AppState.terminalVisible) {
+        return;
+    }
+
+    // 停止轮询
+    stopPollingProcess();
+
+    // 终止活动进程
+    if (AppState.terminalCurrentPid) {
+        BackendAPI.killProcess(AppState.terminalCurrentPid);
+        AppState.terminalCurrentPid = null;
+    }
+
+    // 隐藏终端视图
+    DOM.terminalView.classList.remove('visible');
+    DOM.terminalView.style.height = ''; // 清除内联样式
+    DOM.btnTerminal.classList.remove('active');
+    AppState.terminalVisible = false;
+
+    // 清空终端内容
+    DOM.terminalContent.innerHTML = '';
+}
+
+/**
+ * 切换终端显示状态
+ *
+ * 如果终端可见则关闭，否则打开
+ */
+async function toggleTerminal() {
+    if (AppState.terminalVisible) {
+        closeTerminal();
+    } else {
+        await openTerminal();
+    }
+}
+
+/**
+ * 更新终端提示符
+ *
+ * 更新现有提示符的内容（用户名、主机名、路径等）
+ */
+function updateTerminalPrompt() {
+    const inputLine = document.querySelector('.terminal-input-line');
+    if (!inputLine) {
+        displayTerminalPrompt();
+        return;
+    }
+
+    // 更新root状态
+    if (AppState.terminalIsRoot) {
+        inputLine.classList.add('root');
+    } else {
+        inputLine.classList.remove('root');
+    }
+
+    // 更新各个span的内容
+    const userSpan = inputLine.querySelector('.user');
+    const hostnameSpan = inputLine.querySelector('.hostname');
+    const pathSpan = inputLine.querySelector('.path');
+    const promptCharSpan = inputLine.querySelector('.prompt-char');
+
+    if (userSpan) userSpan.textContent = AppState.terminalUser;
+    if (hostnameSpan) hostnameSpan.textContent = AppState.terminalHostname;
+    if (pathSpan) {
+        // 将绝对路径转换为相对路径显示（如 /home/user -> ~/user）
+        const homeDir = `/home/${AppState.terminalUser}`;
+        let displayPath = AppState.terminalPath;
+        if (displayPath.startsWith(homeDir)) {
+            displayPath = '~' + displayPath.substring(homeDir.length);
+        }
+        pathSpan.textContent = displayPath;
+    }
+    if (promptCharSpan) promptCharSpan.textContent = AppState.terminalIsRoot ? '#' : '$';
+}
+
+/**
+ * 显示新的终端提示符
+ *
+ * 总是创建新的提示符行（不检查是否已存在）
+ */
+function displayNewPrompt() {
+    const promptDiv = document.createElement('div');
+    promptDiv.className = `terminal-input-line ${AppState.terminalIsRoot ? 'root' : ''}`;
+
+    const userSpan = document.createElement('span');
+    userSpan.className = 'user';
+    userSpan.textContent = AppState.terminalUser;
+
+    const atSpan = document.createElement('span');
+    atSpan.className = 'at';
+    atSpan.textContent = '@';
+
+    const hostnameSpan = document.createElement('span');
+    hostnameSpan.className = 'hostname';
+    hostnameSpan.textContent = AppState.terminalHostname;
+
+    const colonSpan = document.createElement('span');
+    colonSpan.className = 'colon';
+    colonSpan.textContent = ':';
+
+    const pathSpan = document.createElement('span');
+    pathSpan.className = 'path';
+    // 将绝对路径转换为相对路径显示（如 /home/user -> ~/user）
+    const homeDir = `/home/${AppState.terminalUser}`;
+    let displayPath = AppState.terminalPath;
+    if (displayPath.startsWith(homeDir)) {
+        displayPath = '~' + displayPath.substring(homeDir.length);
+    }
+    pathSpan.textContent = displayPath;
+
+    const promptCharSpan = document.createElement('span');
+    promptCharSpan.className = 'prompt-char';
+    promptCharSpan.textContent = AppState.terminalIsRoot ? '#' : '$';
+
+    // 添加空格
+    const spaceSpan = document.createElement('span');
+    spaceSpan.textContent = ' ';
+
+    promptDiv.appendChild(userSpan);
+    promptDiv.appendChild(atSpan);
+    promptDiv.appendChild(hostnameSpan);
+    promptDiv.appendChild(colonSpan);
+    promptDiv.appendChild(pathSpan);
+    promptDiv.appendChild(promptCharSpan);
+    promptDiv.appendChild(spaceSpan);
+
+    // 添加输入框
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'terminal-input';
+    input.autocomplete = 'off';
+    input.spellcheck = 'false';
+    input.className = 'terminal-input';
+
+    promptDiv.appendChild(input);
+
+    // 将整个提示符+输入框添加到终端内容区域
+    DOM.terminalContent.appendChild(promptDiv);
+
+    // 获取输入框并添加事件监听
+    if (input) {
+        input.addEventListener('keydown', handleTerminalInput);
+        input.focus();
+    }
+
+    // 滚动到底部
+    DOM.terminalContent.scrollTop = DOM.terminalContent.scrollHeight;
+}
+
+/**
+ * 显示终端提示符
+ *
+ * 在终端中显示用户名@主机名:路径$ 提示符
+ */
+function displayTerminalPrompt() {
+    // 检查是否已存在提示符
+    const existingInputLine = document.querySelector('.terminal-input-line');
+    if (existingInputLine) {
+        updateTerminalPrompt();
+        return;
+    }
+
+    displayNewPrompt();
+}
+
+/**
+ * 处理终端输入
+ *
+ * 处理用户在终端中输入的命令
+ * @param {KeyboardEvent} event 键盘事件
+ */
+async function handleTerminalInput(event) {
+    const input = event.target;
+
+    // Ctrl+C - 发送中断信号
+    if (event.ctrlKey && event.key === 'c') {
+        event.preventDefault();
+        
+        // 如果有活动的进程，终止进程
+        if (AppState.terminalCurrentPid) {
+            await BackendAPI.killProcess(AppState.terminalCurrentPid);
+            stopPollingProcess();
+            AppState.terminalCurrentPid = null;
+        }
+        
+        // 显示 ^C 符号
+        const currentInputLine = input.closest('.terminal-input-line');
+        if (currentInputLine) {
+            // 移除输入框
+            const inputField = currentInputLine.querySelector('input');
+            if (inputField) {
+                inputField.remove();
+            }
+            
+            // 添加 ^C 符号
+            const interruptSpan = document.createElement('span');
+            interruptSpan.className = 'terminal-command';
+            interruptSpan.style.color = '#f44336';
+            interruptSpan.textContent = '^C';
+            currentInputLine.appendChild(interruptSpan);
+            
+            // 添加换行
+            currentInputLine.classList.add('terminal-output-line');
+        }
+        
+        // 创建新的提示符行
+        displayNewPrompt();
+        
+        // 清空输入框
+        input.value = '';
+        return;
+    }
+
+    const command = input.value;
+
+    if (event.key === 'Enter') {
+        // 如果有活动的进程，发送输入到进程
+        if (AppState.terminalCurrentPid) {
+            const inputContent = command + '\n';
+            const result = await BackendAPI.sendProcessInput(AppState.terminalCurrentPid, inputContent);
+            
+            if (result.success) {
+                // 清空输入框
+                input.value = '';
+            } else {
+                // 显示错误
+                const errorLine = document.createElement('div');
+                errorLine.className = 'terminal-output-line';
+                errorLine.style.color = '#f44336';
+                errorLine.textContent = 'Failed to send input to process';
+                DOM.terminalContent.appendChild(errorLine);
+            }
+            return;
+        }
+
+        // 没有活动的进程，执行新命令
+        if (command) {
+            // 处理clear命令
+            if (command === 'clear') {
+                // 清空终端内容
+                DOM.terminalContent.innerHTML = '';
+                // 重新显示提示符
+                displayTerminalPrompt();
+                return;
+            }
+
+            // 添加到命令历史
+            AppState.terminalCommandHistory.push(command);
+            AppState.terminalHistoryIndex = AppState.terminalCommandHistory.length;
+
+            // 找到当前的输入行
+            const currentInputLine = input.closest('.terminal-input-line');
+
+            // 将当前的输入行转换为输出行（保留提示符和命令）
+            if (currentInputLine) {
+                // 移除输入框
+                const inputField = currentInputLine.querySelector('input');
+                if (inputField) {
+                    inputField.remove();
+                }
+                
+                // 添加命令文本到提示符后面
+                const commandSpan = document.createElement('span');
+                commandSpan.className = 'terminal-command';
+                commandSpan.textContent = command;
+                currentInputLine.appendChild(commandSpan);
+                
+                // 添加换行
+                currentInputLine.classList.add('terminal-output-line');
+            }
+
+            // 执行命令
+            const result = await BackendAPI.executeCommand(command, AppState.terminalPath);
+
+            // 更新路径（如果cd命令改变了路径）
+            if (command.startsWith('cd ') && result.success && result.newPath) {
+                AppState.terminalPath = result.newPath;
+            }
+
+            // 更新是否为root用户
+            if (result.isRoot !== undefined) {
+                AppState.terminalIsRoot = result.isRoot;
+            }
+
+            // 显示输出（去除首尾空白）
+            if (result.output && result.output.trim()) {
+                const outputLine = document.createElement('div');
+                outputLine.className = 'terminal-output-line';
+                outputLine.textContent = result.output;
+                DOM.terminalContent.appendChild(outputLine);
+            }
+
+            // 如果命令需要刷新文件树，使用智能刷新
+            if (result.success && result.should_refresh) {
+                // 使用后端返回的should_refresh标志
+                await smartRefresh(command, AppState.terminalPath);
+            }
+
+            // 显示错误
+            if (result.error && !result.success) {
+                const errorLine = document.createElement('div');
+                errorLine.className = 'terminal-output-line';
+                
+                // 如果是超时错误，使用黄色显示
+                if (result.timedOut) {
+                    errorLine.style.color = '#f39c12';
+                } else {
+                    errorLine.style.color = '#f44336';
+                }
+                
+                errorLine.textContent = result.error;
+                DOM.terminalContent.appendChild(errorLine);
+            }
+
+            // 如果是交互式进程，启动轮询
+            if (result.interactive && result.pid) {
+                AppState.terminalCurrentPid = result.pid;
+                startPollingProcess(result.pid);
+                
+                // 滚动到底部
+                DOM.terminalContent.scrollTop = DOM.terminalContent.scrollHeight;
+            } else {
+                // 重新获取终端信息并创建新的提示符
+                const terminalInfo = await BackendAPI.getTerminalInfo(AppState.terminalPath);
+                if (terminalInfo.success) {
+                    AppState.terminalUser = terminalInfo.user;
+                    AppState.terminalHostname = terminalInfo.hostname;
+                    AppState.terminalPath = terminalInfo.path;
+                    AppState.terminalIsRoot = terminalInfo.isRoot;
+                }
+
+                // 创建新的提示符行
+                displayNewPrompt();
+            }
+        } else {
+            // 空命令，只显示换行
+            const newLine = document.createElement('div');
+            newLine.className = 'terminal-output-line';
+            newLine.textContent = '';
+            DOM.terminalContent.appendChild(newLine);
+            
+            // 创建新的提示符行
+            displayNewPrompt();
+        }
+
+        // 清空输入框
+        input.value = '';
+    } else if (event.key === 'ArrowUp') {
+        // 上箭头：显示上一条命令
+        event.preventDefault();
+        if (AppState.terminalHistoryIndex > 0) {
+            AppState.terminalHistoryIndex--;
+            input.value = AppState.terminalCommandHistory[AppState.terminalHistoryIndex] || '';
+        }
+    } else if (event.key === 'ArrowDown') {
+        // 下箭头：显示下一条命令
+        event.preventDefault();
+        if (AppState.terminalHistoryIndex < AppState.terminalCommandHistory.length - 1) {
+            AppState.terminalHistoryIndex++;
+            input.value = AppState.terminalCommandHistory[AppState.terminalHistoryIndex] || '';
+        } else {
+            AppState.terminalHistoryIndex = AppState.terminalCommandHistory.length;
+            input.value = '';
+        }
+    } else if (event.key === 'Tab') {
+        // Tab键：阻止默认行为（避免焦点移动）
+        event.preventDefault();
+    } else if (event.key === 'c' && event.ctrlKey) {
+        // Ctrl+C：清空当前输入
+        input.value = '';
+    }
+}
+
+/**
+ * 初始化终端高度调整功能
+ *
+ * 为终端视图添加拖动调整高度的功能
+ * 使用requestAnimationFrame实现60FPS流畅动画
+ */
+function initTerminalResize() {
+    const resizeHandle = DOM.terminalResizeHandle;
+    if (!resizeHandle) {
+        return;
+    }
+
+    let isResizing = false;
+    let startY = 0;
+    let startHeight = 0;
+    let animationFrameId = null;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = DOM.terminalView.clientHeight;
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+    });
+
+    function onMouseMove(e) {
+        if (!isResizing) return;
+
+        // 取消之前的动画帧请求
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        // 使用requestAnimationFrame实现60FPS
+        animationFrameId = requestAnimationFrame(() => {
+            const deltaY = startY - e.clientY;
+            const minHeight = 63;  // 最小高度为3行（3 * 21px）
+            const maxHeight = 504; // 最大高度为24行（24 * 21px）
+
+            let newHeight = startHeight + deltaY;
+            newHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
+
+            DOM.terminalView.style.height = `${newHeight}px`;
+            AppState.terminalHeight = newHeight;
+
+            animationFrameId = null;
+        });
+    }
+
+    function onMouseUp() {
+        isResizing = false;
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    }
+
+    // 点击终端视图时聚焦到输入框
+    DOM.terminalView.addEventListener('click', (e) => {
+        const input = document.getElementById('terminal-input');
+        if (input && e.target !== input && !input.contains(e.target)) {
+            input.focus();
+        }
+    });
+}
+
+/**
+ * 开始轮询交互式进程的输出
+ *
+ * @param {number} pid 进程ID
+ */
+async function startPollingProcess(pid) {
+    // 清除旧的轮询定时器
+    if (AppState.terminalPollInterval) {
+        clearInterval(AppState.terminalPollInterval);
+        AppState.terminalPollInterval = null;
+    }
+
+    // 每隔100ms轮询一次
+    AppState.terminalPollInterval = setInterval(async () => {
+        const result = await BackendAPI.getProcessOutput(pid);
+        
+        if (result.success && result.output && result.output.trim()) {
+            // 显示输出
+            const outputLine = document.createElement('div');
+            outputLine.className = 'terminal-output-line';
+            outputLine.textContent = result.output;
+            DOM.terminalContent.appendChild(outputLine);
+            
+            // 滚动到底部
+            DOM.terminalContent.scrollTop = DOM.terminalContent.scrollHeight;
+        }
+
+        // 如果进程已结束，停止轮询
+        if (!result.is_running) {
+            stopPollingProcess();
+            
+            // 不显示进程结束信息，直接创建新的提示符行
+            // const endLine = document.createElement('div');
+            // endLine.className = 'terminal-output-line';
+            // endLine.style.color = '#888';
+            // endLine.textContent = `Process ${pid} exited`;
+            // DOM.terminalContent.appendChild(endLine);
+            
+            // 清空当前进程ID
+            AppState.terminalCurrentPid = null;
+            
+            // 创建新的提示符行
+            displayNewPrompt();
+        }
+    }, 100);
+}
+
+/**
+ * 停止轮询交互式进程的输出
+ */
+function stopPollingProcess() {
+    if (AppState.terminalPollInterval) {
+        clearInterval(AppState.terminalPollInterval);
+        AppState.terminalPollInterval = null;
+    }
+}

@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.7-nova - 高性能文本缓冲模块实现
+ * Mikufy v2.11-nova - 高性能文本缓冲模块实现
  *
  * 本文件实现了 TextBuffer 类的所有方法。
  *
@@ -16,6 +16,7 @@
 #include "../headers/text_buffer.h"
 #include <iostream>
 #include <cstring>
+#include <format>
 
 /*
  * ============================================================================
@@ -88,7 +89,7 @@ bool TextBuffer::load_file(const std::string &path)
 	 */
 	mmap_fd = open(path.c_str(), O_RDONLY);
 	if (mmap_fd < 0) {
-		std::cerr << "无法打开文件: " << path << std::endl;
+		std::cerr << std::format("无法打开文件: {}", path) << std::endl;
 		return false;
 	}
 
@@ -97,7 +98,7 @@ bool TextBuffer::load_file(const std::string &path)
 	 */
 	struct stat st;
 	if (fstat(mmap_fd, &st) < 0) {
-		std::cerr << "无法获取文件大小: " << path << std::endl;
+		std::cerr << std::format("无法获取文件大小: {}", path) << std::endl;
 		::close(mmap_fd);
 		mmap_fd = -1;
 		return false;
@@ -109,8 +110,7 @@ bool TextBuffer::load_file(const std::string &path)
 	 * 检查文件大小限制
 	 */
 	if (mmap_size > MAX_FILE_SIZE) {
-		std::cerr << "文件过大: " << mmap_size << " 字节"
-			  << std::endl;
+		std::cerr << std::format("文件过大: {} 字节", mmap_size) << std::endl;
 		::close(mmap_fd);
 		mmap_fd = -1;
 		return false;
@@ -123,7 +123,7 @@ bool TextBuffer::load_file(const std::string &path)
 		mmap(nullptr, mmap_size, PROT_READ, MAP_PRIVATE, mmap_fd, 0));
 
 	if (mmap_data == MAP_FAILED) {
-		std::cerr << "mmap 失败: " << strerror(errno) << std::endl;
+		std::cerr << std::format("mmap 失败: {}", strerror(errno)) << std::endl;
 		::close(mmap_fd);
 		mmap_fd = -1;
 		mmap_data = nullptr;
@@ -154,8 +154,8 @@ bool TextBuffer::load_file(const std::string &path)
 	line_count = line_cache.size();
 	char_count = mmap_size;
 
-	std::cout << "文件加载成功: " << path << ", 大小: " << mmap_size
-		  << " 字节, 行数: " << line_count << std::endl;
+	std::cout << std::format("文件加载成功: {}, 大小: {} 字节, 行数: {}",
+				 path, mmap_size, line_count) << std::endl;
 
 	return true;
 }

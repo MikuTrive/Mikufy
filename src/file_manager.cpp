@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.7-nova - 文件管理器实现
+ * Mikufy v2.11-nova - 文件管理器实现
  *
  * 本文件实现了FileManager类的所有方法，提供完整的文件系统操作功能。
  * FileManager封装了底层的文件操作API，提供线程安全的接口，并使用
@@ -31,6 +31,7 @@
 #include <algorithm>		/* std::sort, std::find */
 #include <iostream>		/* std::cout, std::cerr */
 #include <cerrno>		/* errno, strerror() */
+#include <format>		/* C++23 std::format */
 
 /*
  * ============================================================================
@@ -295,8 +296,8 @@ bool FileManager::read_file(const std::string &path, std::string &content)
 	 * 检查文件大小是否超过限制
 	 */
 	if (file_size > MAX_FILE_READ_SIZE) {
-		std::cerr << "文件过大（" << file_size << " 字节），超过限制 "
-			  << MAX_FILE_READ_SIZE << " 字节" << std::endl;
+		std::cerr << std::format("文件过大（{} 字节），超过限制 {} 字节",
+					file_size, MAX_FILE_READ_SIZE) << std::endl;
 		return false;
 	}
 

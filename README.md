@@ -1,59 +1,69 @@
-# Mikufy v2.7-nova - 代码编辑器
+# Mikufy v2.11-nova - 代码编辑器
 
-## 🙏 致谢贡献者
-
-特别感谢 **luozenan** 对本项目的贡献！
 
 - 当前提供 `Debian13`、`Fedora43`、`ArchLinux`、`NixOS` 的完整支持
 - 其他大部分 `Debian系`、`RHEL系`、`ArchLinux系` 的衍生版也应支持
-- v2.7-nova 为完整的稳定版发布（可联系我们合作开发贡献）
+- v2.11-nova 为完整的稳定版发布（可联系我们合作开发贡献）
 
 ---
 
 ## 📋 版本更新说明
 
-### v2.7-nova
+### v2.11-nova
 
-**重大更新：高性能架构重构**
+**重大更新：集成终端管理和智能进程启动**
 
-本次版本对整个项目进行了全面的架构重构，引入了 Piece Table 文本缓冲区和虚拟滚动技术，支持大文件（10万~50万行）的高效编辑。
+本次版本引入了完整的终端管理系统和智能进程启动器，显著提升了命令行交互体验。
 
 #### 核心架构升级
 
 1. **高性能文本缓冲区（Piece Table）**
-   - 新增 `text_buffer.cpp/h` 模块
+   - `text_buffer.cpp/h` 模块
    - 使用 mmap 映射原始文件，避免大文件一次性加载到内存
    - Piece Table 架构提供 O(log n) 的插入和删除操作
    - 行缓存机制加速行范围查询
    - 线程安全：使用互斥锁保护所有操作
 
 2. **虚拟滚动编辑器**
-   - 新增 `virtual_editor.js` 虚拟滚动编辑器
+   - `virtual_editor.js` 虚拟滚动编辑器
    - 基于 Canvas 渲染，使用 requestAnimationFrame 驱动重绘
    - 只渲染可见区域 + 预加载缓冲行
    - 批量数据传输，从 C++ 后端批量获取行数据
    - 支持 10万~50万行文件的流畅滚动（60 FPS）
 
-3. **代码规范化重构**
+3. **终端管理系统（新增 v2.11）**
+   - `terminal_manager.cpp/h` 模块：管理交互式终端进程
+   - `terminal_window.cpp/h` 模块：独立的 GTK4 终端窗口
+   - `terminal_helper.cpp` 模块：独立的终端助手程序
+   - `process_launcher.cpp/h` 模块：智能进程启动器
+   - 使用 PTY（伪终端）支持交互式程序（vim、bash等）
+   - epoll 事件驱动和非阻塞 I/O，支持大量并发进程
+   - 独立 IO 线程持续读取进程输出，不阻塞 UI 线程
+   - 环形缓冲区高效管理高频输出，支持万行级别输出
+
+4. **智能进程启动（新增 v2.11）**
+   - 自动检测 CLI/GUI 程序
+   - X11 窗口检测：枚举窗口树，检查 _NET_WM_PID 属性
+   - Wayland 连接检测：检查 /proc/[pid]/fd 中的 wayland 连接
+   - GUI 程序自动在新窗口运行，CLI 程序在终端窗口运行
+   - 支持运行时检测，可配置超时时间（默认 500ms）
+
+5. **代码规范化重构**
    - 后端代码（C++）遵循 Linux 内核代码风格规范
    - 统一使用 Tab 缩进（8字符宽度）
    - 统一使用 K&R 括号风格
-   - 注释覆盖率提升至 95% 以上
+   - 注释覆盖率提升至 80% 以上，所有函数和类都有详细文档注释
 
 #### 功能增强
 
-<<<<<<< Updated upstream
-### 快捷键列表
-    快捷键
-    
-| 快捷键 | 用途 |
-|------|---------|
-=======
 - **文件缓存机制**：FileManager 新增 LRU 缓存，提升重复读取性能
 - **壁纸更换**：支持在 17 种预设壁纸中切换（可自行加入新壁纸-新壁纸前缀必须index-*）
 - **异步文件对话框**：使用 GTK4 的异步 API，避免阻塞 GTK 主循环
 - **增强的全屏控制**：精确控制全屏进入和退出，防止意外退出
 - **媒体文件预览**：支持图片、视频、音频文件预览
+- **内置终端**：编辑器内集成终端，支持命令执行
+- **智能进程启动**：自动识别 CLI/GUI 程序并选择合适的运行方式
+- **交互式程序支持**：支持 大部分 交互式终端程序
 
 #### Bug 修复
 
@@ -61,12 +71,15 @@
 - 修复了文件类型检测的准确性（使用哈希表优化）
 - 修复了全屏退出时可能被意外触发的问题
 - 修复了 Arch Linux 上的 X11 共享内存兼容性问题
+- 修复了终端输出缓冲区溢出的问题
+- 修复了交互式进程输入响应延迟的问题
 
 #### 平台支持
 
 - **主要支持平台**：Fedora43、ArchLinux、Debian13、NixOS
 - **兼容平台**：其他使用 GTK4 和 WebKitGTK 6.0 的 Linux 发行版
 - **显示服务器**：Wayland 和 XWayland
+- **终端类型**：支持 PTY 终端，兼容 bash、zsh、fish 等
 
 ---
 
@@ -74,7 +87,6 @@
 
 | 快捷键 | 功能说明 |
 |--------|----------|
->>>>>>> Stashed changes
 | `Ctrl+S` | 保存所有文件 |
 | `F5` | 刷新编辑器内容 |
 | `Ctrl+O` | 打开工作目录 |
@@ -92,7 +104,7 @@
 
 ### 技术栈
 
-#### 后端（C++17）
+#### 后端（C++23）
 
 - **GUI 框架**：GTK4
 - **Web 渲染引擎**：WebKitGTK 6.0
@@ -100,6 +112,8 @@
 - **JSON 处理**：nlohmann/json
 - **文件类型检测**：libmagic
 - **文本缓冲区**：Piece Table 架构
+- **终端管理**：PTY（伪终端）+ epoll 事件驱动
+- **进程启动**：forkpty + execve，支持 X11/Wayland 检测
 
 #### 前端（原生 JavaScript）
 
@@ -124,6 +138,7 @@
   - 多线程：服务器主循环在独立线程中运行
   - 路由表：使用 std::map 存储 URL 到处理器的映射
   - 高性能编辑器 API：基于 TextBuffer 虚拟化渲染
+  - 终端 API：支持命令执行和交互式进程管理
 
 #### 3. FileManager（文件管理器）
 - **职责**：封装文件系统操作
@@ -141,6 +156,42 @@
   - 行缓存机制：加速行范围查询
   - 线程安全：使用互斥锁保护所有操作
 
+#### 5. TerminalManager（终端管理器，v2.11 新增）
+- **职责**：管理交互式终端进程
+- **特性**：
+  - PTY（伪终端）支持：使用 forkpty 创建伪终端
+  - epoll 事件驱动：高性能 I/O 多路复用，支持大量并发进程
+  - 非阻塞 I/O：所有 I/O 操作都设置为非阻塞模式
+  - 独立 IO 线程：使用 std::jthread 持续读取进程输出，不阻塞 UI 线程
+  - 环形缓冲区：高效管理高频输出，支持万行级别输出
+  - RAII 资源管理：自动清理资源，无内存泄漏
+
+#### 6. TerminalWindow（终端窗口，v2.11 新增）
+- **职责**：创建独立的 GTK4 终端窗口
+- **特性**：
+  - GTK4 应用窗口，内嵌 TextView 显示终端输出
+  - 黑色背景，白色文字，等宽字体
+  - 自动聚焦，ESC 键关闭窗口并终止进程
+  - 进程退出后显示退出码
+  - RAII 资源管理
+
+#### 7. ProcessLauncher（进程启动器，v2.11 新增）
+- **职责**：智能启动进程并检测 GUI 程序
+- **特性**：
+  - 运行时 GUI 检测：X11 窗口创建 + Wayland 连接检测
+  - 可配置超时时间（默认 500ms）
+  - CLI 程序：返回 PTY 文件描述符，用于终端显示
+  - GUI 程序：简单 fork+execve，无 PTY
+  - RAII 资源管理
+
+#### 8. terminal_helper（终端助手，v2.11 新增）
+- **职责**：独立的 GTK4 终端助手程序
+- **特性**：
+  - 主程序通过命令行参数传递要执行的命令和工作目录
+  - 使用 epoll + PTY 实现高效的终端输出
+  - 支持 ESC 键关闭窗口
+  - 支持 Python、Node 等解释器脚本的独立窗口运行
+
 ---
 
 ## 📦 目录结构
@@ -154,25 +205,33 @@ Mikufy/
 │   ├── file_manager.h    # 文件管理器头文件
 │   ├── web_server.h      # Web 服务器头文件
 │   ├── window_manager.h  # 窗口管理器头文件
-│   └── text_buffer.h     # 文本缓冲区头文件（v2.7 新增）
+│   ├── text_buffer.h     # 文本缓冲区头文件
+│   ├── terminal_manager.h# 终端管理器头文件（v2.11 新增）
+│   ├── terminal_window.h # 终端窗口头文件（v2.11 新增）
+│   └── process_launcher.h# 进程启动器头文件（v2.11 新增）
 │
 ├── src/                   # C++ 源代码目录
 │   ├── main.cpp          # 主程序入口
 │   ├── file_manager.cpp  # 文件管理器实现
 │   ├── web_server.cpp    # Web 服务器实现
 │   ├── window_manager.cpp# 窗口管理器实现
-│   └── text_buffer.cpp   # 文本缓冲区实现（v2.7 新增）
+│   ├── text_buffer.cpp   # 文本缓冲区实现
+│   ├── terminal_manager.cpp# 终端管理器实现（v2.11 新增）
+│   ├── terminal_window.cpp # 终端窗口实现（v2.11 新增）
+│   ├── terminal_helper.cpp # 终端助手实现（v2.11 新增）
+│   └── process_launcher.cpp # 进程启动器实现（v2.11 新增）
 │
 ├── web/                   # 前端源代码目录
 │   ├── index.html        # HTML 结构文件
 │   ├── style.css         # CSS 样式文件
 │   ├── app.js            # JavaScript 交互逻辑
-│   ├── virtual_editor.js # 虚拟滚动编辑器（v2.7 新增）
+│   ├── virtual_editor.js # 虚拟滚动编辑器
 │   ├── Mikufy.png        # Logo 图片
 │   ├── Background/       # 背景图片目录
 │   │   ├── index-1.png ~ index-17.png  # 17 张预设壁纸
 │   └── Icons/            # 图标资源目录（SVG 格式）
 │       ├── AI-24.svg, C-24.svg, C++-24.svg, ...  # 各种文件类型图标
+│       └── Terminal.svg  # 终端图标（v2.11 新增）
 │
 ├── build.sh              # 一键编译脚本
 ├── install.sh            # 桌面应用程序安装脚本
@@ -191,16 +250,20 @@ Mikufy/
 ├── headers/                # C++ 头文件目录（编译时不改变）
 ├── src/                    # C++ 源代码目录（编译时不改变）
 ├── web/                    # 前端源代码目录（编译时不改变）
-├── build/                  # 编译产物目录（v2.7 新增）
+├── build/                  # 编译产物目录
 │   ├── main.o              # 主程序目标文件
 │   ├── file_manager.o      # 文件管理器目标文件
 │   ├── web_server.o        # Web 服务器目标文件
 │   ├── window_manager.o    # 窗口管理器目标文件
 │   ├── text_buffer.o       # 文本缓冲区目标文件
+│   ├── terminal_manager.o  # 终端管理器目标文件（v2.11 新增）
+│   ├── terminal_window.o   # 终端窗口目标文件（v2.11 新增）
+│   ├── process_launcher.o  # 进程启动器目标文件（v2.11 新增）
 ├── debug/                  # 调试日志目录
 │   └── debug.log           # 编译日志
 │
 ├── mikufy                  # 编译生成的可执行文件
+├── terminal_helper         # 编译生成的终端助手可执行文件（v2.11 新增）
 ├── headers/                # 头文件（未改变）
 ├── build.sh                # 编译脚本（未改变）
 ├── install.sh              # 安装脚本（未改变）
@@ -209,8 +272,9 @@ Mikufy/
 
 ### 目录变化说明
 
-- **build/**：v2.7 新增的编译产物目录，用于存放中间目标文件（.o）
-- **mikufy**：编译生成的可执行文件，位于项目根目录
+- **build/**：编译产物目录，用于存放中间目标文件（.o）
+- **mikufy**：编译生成的主程序可执行文件，位于项目根目录
+- **terminal_helper**：编译生成的终端助手可执行文件（v2.11 新增）
 - 其他目录（headers/、src/、web/）在编译过程中不发生改变
 
 ---
@@ -222,7 +286,7 @@ Mikufy/
 - **操作系统**：Fedora43、ArchLinux、Debian13、NixOS
 - **桌面环境**：GNOME、Plasma、Xfce 等主流桌面环境
 - **显示服务器**：Wayland 或 XWayland
-- **编译器**：GCC 7.0+（支持 C++17）
+- **编译器**：gcc/g++ 13.0+（支持 C++23）
 
 ### 依赖包列表
 
@@ -302,7 +366,7 @@ sudo apt install nlohmann-json3-dev
 ```nix
 inputs = {
   mikufy-github = {
-    url = "github:MikuTrive/Mikufy";
+    url = "github:MikuTrive/Mikufy/tree/mikufy-v2.11-nova";
     inputs.nixpkgs.follows = "nixpkgs";
   };
 };
@@ -385,8 +449,6 @@ pkg-config --modversion nlohmann_json
  */
 ```
 
-<<<<<<< Updated upstream
-=======
 #### 2. 缩进和格式
 
 - 使用 Tab 缩进（8 字符宽度）
@@ -405,7 +467,6 @@ int function_name(int param1, char *param2)
 	return 0;
 }
 ```
->>>>>>> Stashed changes
 
 #### 3. 命名约定
 
@@ -578,7 +639,7 @@ function functionName(paramName) {
 
 ---
 
-**Mikufy v2.7-nova** - 让代码编辑更简单
+**Mikufy v2.11-nova** - 让代码编辑更简单
 
 MiraTrive/MikuTrive
 

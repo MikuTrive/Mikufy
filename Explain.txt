@@ -1,4 +1,4 @@
-Mikufy v2.7-nova - Fedora43、ArchLinux、Debian13 依赖包列表
+Mikufy v2.11-nova - Fedora43、ArchLinux、Debian13 依赖包列表
 
 
 必需依赖：
