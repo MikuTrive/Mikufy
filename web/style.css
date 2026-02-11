@@ -1,5 +1,5 @@
 /**
- * Mikufy v2.7-nova - 代码编辑器样式表
+ * Mikufy v2.11-nova - 代码编辑器样式表
  *
  * 本文件定义了Mikufy代码编辑器的所有样式
  *
@@ -20,7 +20,7 @@
  *   - 代码编辑：'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace
  *
  * 作者：MikuTrive
- * 版本：v2.7-nova
+ * 版本：v2.11-nova
  * 许可证：详见 LICENSE 文件
  */
 
@@ -54,7 +54,7 @@ html, body {
  * 使用壁纸作为背景，设置不透明度为0.65，确保内容可读性
  */
 body {
-    background-image: url('Background/index-16.png');
+    background-image: url('Background/index-10.png');
     background-size: cover;        /* 背景图片覆盖整个容器 */
     background-position: center;   /* 背景图片居中显示 */
     background-repeat: no-repeat;  /* 背景图片不重复 */
@@ -1412,4 +1412,209 @@ body {
 #text-layer {
     left: 50px;
     z-index: 20;
+}
+
+/* ============================================================================
+ * 终端视图样式
+ * ============================================================================
+ */
+
+/**
+ * 终端视图区域
+ * 功能：显示终端输出和输入
+ * 布局：Flexbox垂直布局
+ * 特性：
+ *   - 不透明度0.35
+ *   - 深度模糊效果
+ *   - 丝滑动画
+ *   - 高度为6个行数高度（约126px）
+ *   - 默认隐藏（height: 0）
+ */
+#terminal-view {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    height: 0;
+    min-height: 0;
+    background-color: rgba(0, 0, 0, 1.0);
+    opacity: 0.65;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    overflow: hidden;
+    transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+/**
+ * 终端视图显示状态
+ * 高度为6个行数高度（6 * 21px = 126px）
+ */
+#terminal-view.visible {
+    height: 126px;
+}
+
+/**
+ * 终端高度调整横条
+ * 功能：允许用户拖动调整终端高度
+ * 位置：终端视图顶部
+ */
+#terminal-resize-handle {
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.2);
+    cursor: ns-resize;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
+}
+
+#terminal-resize-handle:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+/**
+ * 终端内容区域
+ * 功能：显示终端输出和输入
+ * 布局：占据所有可用空间
+ */
+#terminal-content {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    font-family: 'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 21px;
+    color: #e0e0e0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    /* 隐藏滚动条 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#terminal-content::-webkit-scrollbar {
+    display: none;
+}
+
+/**
+ * 终端提示符样式
+ * 用于提示符所在的输入行
+ */
+.terminal-input-line .user {
+    color: #4caf50;
+}
+
+.terminal-input-line .at {
+    color: #4caf50;
+}
+
+.terminal-input-line .hostname {
+    color: #4caf50;
+}
+
+.terminal-input-line .colon {
+    color: #ffffff;
+}
+
+.terminal-input-line .path {
+    color: #4caf50;
+}
+
+.terminal-input-line .prompt-char {
+    color: #ffffff;
+}
+
+/**
+ * 终端root用户提示符样式
+ */
+.terminal-input-line.root .user {
+    color: #f44336;
+}
+
+.terminal-input-line.root .at {
+    color: #f44336;
+}
+
+.terminal-input-line.root .hostname {
+    color: #f44336;
+}
+
+.terminal-input-line.root .path {
+    color: #f44336;
+}
+
+/**
+ * 终端命令文本样式
+ */
+.terminal-command {
+    color: #ffffff;
+}
+
+/**
+ * 终端输出行
+ */
+.terminal-output-line {
+    min-height: 21px;
+    line-height: 21px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/**
+ * 终端输入行
+ */
+.terminal-input-line {
+    display: flex;
+    align-items: center;
+    min-height: 21px;
+    line-height: 21px;
+    flex-wrap: nowrap;
+}
+
+/**
+ * 已执行的命令行样式（转换为输出行）
+ */
+.terminal-input-line.terminal-output-line {
+    display: flex;
+    align-items: center;
+    min-height: 21px;
+    line-height: 21px;
+    flex-wrap: wrap;
+}
+
+/**
+ * 终端输入框
+ */
+.terminal-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e0e0e0;
+    font-family: 'Cascadia Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 21px;
+    caret-color: #4caf50;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+/**
+ * 打开终端按钮激活状态
+ */
+#btn-terminal.active {
+    background-color: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.8);
+}
+
+/**
+ * 打开终端按钮禁用状态
+ */
+#btn-terminal:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+#btn-terminal:disabled:hover {
+    background-color: transparent;
 }

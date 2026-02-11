@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.7-nova - 高性能文本缓冲模块
+ * Mikufy v2.11-nova - 高性能文本缓冲模块
  *
  * 本文件实现了基于 Piece Table 数据结构的高性能文本缓冲区，
  * 用于支持大文件（10万~50万行）的高效编辑操作。
@@ -37,6 +37,8 @@
 #include <unistd.h>		/* close() */
 #include <deque>			/* std::deque 用于 Piece 列表 */
 #include <algorithm>		/* std::lower_bound */
+#include <expected>		/* C++23 std::expected 错误处理 */
+#include <format>		/* C++23 std::format 字符串格式化 */
 
 /*
  * ============================================================================

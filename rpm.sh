@@ -1,7 +1,5 @@
-#!/bin/bash
-
 #
-# Mikufy v2.7-nova - RPM 打包脚本
+# Mikufy v2.11-nova - RPM 打包脚本
 # 自动构建 RPM 包
 #
 
@@ -14,7 +12,7 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-VERSION="2.7.nova"
+VERSION="2.11.nova"
 RELEASE="1"
 APP_NAME="mikufy"
 SPEC_FILE="${APP_NAME}.spec"
@@ -161,12 +159,12 @@ create_spec_file() {
 %global debug_package %{nil}
 
 Name:           mikufy
-Version:        2.7.nova
+Version:        2.11.nova
 Release:        1%{?dist}
 Summary:        Mikufy - A modern file editor with web interface
 
 License:        GPL-3.0
-URL:            https://github.com/MikuTrive/Mikufy/tree/mikufy-v2.7-nova
+URL:            https://github.com/MikuTrive/Mikufy/tree/mikufy-v2.11-nova
 Source0:        %{name}-%{version}.tar.gz
 
 # 构建依赖
@@ -203,8 +201,8 @@ if pkg-config --exists nlohmann_json 2>/dev/null; then
     LDFLAGS+=" \$(pkg-config --libs nlohmann_json)"
 fi
 
-# 编译项目
-g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic \\
+# 编译主程序
+g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \\
     -Iheaders \\
     \${CXXFLAGS} \\
     src/main.cpp \\
@@ -212,8 +210,19 @@ g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic \\
     src/web_server.cpp \\
     src/window_manager.cpp \\
     src/text_buffer.cpp \\
+    src/terminal_manager.cpp \\
+    src/process_launcher.cpp \\
+    src/terminal_window.cpp \\
     \${LDFLAGS} \\
     -o mikufy
+
+# 编译 terminal_helper 独立程序
+g++ -std=c++23 -O2 -Wall -Wextra -Wpedantic \\
+    -Iheaders \\
+    \${CXXFLAGS} \\
+    src/terminal_helper.cpp \\
+    \${LDFLAGS} \\
+    -o terminal_helper
 
 %install
 # 创建安装目录
@@ -224,6 +233,7 @@ mkdir -p %{buildroot}%{_datadir}/icons/hicolor/256x256/apps
 
 # 安装可执行文件
 install -m 755 mikufy %{buildroot}%{_datadir}/mikufy/
+install -m 755 terminal_helper %{buildroot}%{_datadir}/mikufy/
 
 # 安装 web 资源（包括 Background 和 Icons 子目录）
 cp -r web/* %{buildroot}%{_datadir}/mikufy/web/
@@ -248,6 +258,9 @@ exec %{_datadir}/mikufy/mikufy "\$@"
 SCRIPT_EOF
 chmod +x %{buildroot}%{_bindir}/mikufy
 
+# 创建 terminal_helper 符号链接（使用相对路径）
+ln -sf ../share/mikufy/terminal_helper %{buildroot}%{_bindir}/terminal_helper
+
 # 创建 desktop 文件
 mkdir -p %{buildroot}%{_datadir}/applications
 cat > %{buildroot}%{_datadir}/applications/mikufy.desktop << 'DESKTOP_EOF'
@@ -268,6 +281,7 @@ DESKTOP_EOF
 
 %files
 %{_bindir}/mikufy
+%{_bindir}/terminal_helper
 %{_datadir}/mikufy
 %{_datadir}/icons/hicolor/256x256/apps/mikufy.png
 %{_datadir}/applications/mikufy.desktop
@@ -277,9 +291,22 @@ DESKTOP_EOF
 # 修改 style.css 文件权限，允许所有用户读写
 chmod 666 %{_datadir}/mikufy/web/style.css 2>/dev/null || true
 
+# 更新图标缓存
+gtk-update-icon-cache -f -t %{_datadir}/icons/hicolor 2>/dev/null || true
+
+# 更新桌面数据库
+update-desktop-database %{_datadir}/applications 2>/dev/null || true
+
+%postun
+# 更新图标缓存
+gtk-update-icon-cache -f -t %{_datadir}/icons/hicolor 2>/dev/null || true
+
+# 更新桌面数据库
+update-desktop-database %{_datadir}/applications 2>/dev/null || true
+
 %changelog
-* ${changelog_date} Builder <builder@example.com> - 2.7.nova-1
-- Initial package for Mikufy v2.7-nova
+* ${changelog_date} Builder <builder@example.com> - 2.11.nova-1
+- Initial package for Mikufy v2.11-nova
 EOF
 
     print_success "SPEC 文件已创建: ${RPM_SPECS_DIR}/${SPEC_FILE}"

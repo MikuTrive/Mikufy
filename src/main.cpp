@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.7-nova - 主程序入口
+ * Mikufy v2.11-nova - 主程序入口
  *
  * 这是Mikufy代码编辑器的主程序文件，包含应用程序的入口点main()函数。
  * 该文件负责：
@@ -32,6 +32,7 @@
 #include <unistd.h>		/* readlink(), getcwd() */
 #include <dirent.h>		/* opendir(), closedir() */
 #include <cstring>		/* getcwd() */
+#include <format>		/* C++23 std::format */
 
 /*
  * ============================================================================
@@ -68,7 +69,7 @@ static WindowManager *g_window_manager = NULL;	/* 窗口管理器指针 */
  */
 static void signal_handler(int signal)
 {
-	std::cout << "\n收到信号 " << signal << "，正在关闭..."
+	std::cout << std::format("\n收到信号 {}，正在关闭...", signal)
 		  << std::endl;
 
 	/* 静态变量防止重复处理 */
@@ -108,7 +109,7 @@ static void signal_handler(int signal)
 static void print_welcome(void)
 {
 	std::cout << "========================================" << std::endl;
-	std::cout << "  Mikufy v2.7-nova - Code Editor" << std::endl;
+	std::cout << "  Mikufy v2.11-nova - Code Editor" << std::endl;
 	std::cout << "========================================" << std::endl;
 }
 
@@ -231,19 +232,17 @@ int main(int argc, char *argv[])
 				port = std::atoi(argv[++i]);
 				/* 验证端口号范围 */
 				if (port <= 0 || port > 65535) {
-					std::cerr << "错误: 无效的端口号"
-						  << std::endl;
+					std::cerr << "错误: 无效的端口号" << std::endl;
 					return 1;
 				}
 			} else {
-				std::cerr << "错误: 缺少端口号参数"
-					  << std::endl;
+				std::cerr << "错误: 缺少端口号参数" << std::endl;
 				return 1;
 			}
 		}
 		/* 未知参数 */
 		else {
-			std::cerr << "错误: 未知选项 " << arg << std::endl;
+			std::cerr << std::format("错误: 未知选项 {}", arg) << std::endl;
 			print_usage(argv[0]);
 			return 1;
 		}
@@ -292,7 +291,7 @@ int main(int argc, char *argv[])
 		 * ----------------------------------------------------------------
 		 * WebServer提供HTTP服务，处理前端请求
 		 */
-		std::cout << "正在启动Web服务器 (端口: " << port << ")..."
+		std::cout << std::format("正在启动Web服务器 (端口: {})...", port)
 			  << std::endl;
 		g_web_server = new WebServer(g_file_manager);
 		if (!g_web_server) {

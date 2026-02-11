@@ -1,9 +1,7 @@
-#!/bin/bash
-
-# Mikufy v2.7-nova
+# Mikufy v2.11-nova
 
 PROJECT_NAME="Mikufy"
-VERSION="v2.7-nova"
+VERSION="2.11-nova"
 OUTPUT_FILE="mikufy"
 BUILD_DIR="build"
 DEBUG_DIR="debug"
@@ -11,7 +9,7 @@ DEBUG_LOG="${DEBUG_DIR}/debug.log"
 
 # 编译器设置
 CXX="g++"
-CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Wpedantic -c"
+CXXFLAGS="-std=c++23 -O2 -Wall -Wextra -Wpedantic -c"
 
 # 包含路径
 INCLUDE_DIRS="-Iheaders"
@@ -23,6 +21,9 @@ SRC_FILES=(
     "src/web_server.cpp"
     "src/window_manager.cpp"
     "src/text_buffer.cpp"
+    "src/terminal_manager.cpp"
+    "src/process_launcher.cpp"
+    "src/terminal_window.cpp"
 )
 
 # 颜色定义
@@ -67,7 +68,7 @@ get_cpu_info() {
 init_debug_log() {
     mkdir -p ${DEBUG_DIR}
     echo "========================================" > ${DEBUG_LOG}
-    echo "Mikufy v${VERSION} 编译日志" >> ${DEBUG_LOG}
+    echo "Mikufy ${VERSION} 编译日志" >> ${DEBUG_LOG}
     echo "时间: $(date)" >> ${DEBUG_LOG}
     echo "CPU: ${CORES} 核心 ${THREADS} 线程" >> ${DEBUG_LOG}
     echo "========================================" >> ${DEBUG_LOG}
@@ -181,8 +182,6 @@ if ${CXX} ${OBJ_FILES_STR} -o ${OUTPUT_FILE} ${LDFLAGS} >> ${DEBUG_LOG} 2>&1; th
     echo -e "[${COLOR_GREEN}OK${COLOR_RESET}] 编译成功！"
     chmod +x ${OUTPUT_FILE}
     echo ""
-    echo "编译日志已保存到: ${DEBUG_LOG}"
-    echo ""
 else
     echo ""
     echo -e "${COLOR_RED}[ERROR]${COLOR_RESET} 链接失败！"
@@ -190,3 +189,22 @@ else
     echo ""
     exit 1
 fi
+
+# 编译 terminal_helper 独立程序
+echo ""
+echo -e "${COLOR_ORANGE}<INFO>${COLOR_RESET} 正在编译 terminal_helper..."
+# 移除 -c 标志，直接编译并链接到当前目录
+HELPER_CXXFLAGS="${CXXFLAGS// -c/}"
+if ${CXX} ${HELPER_CXXFLAGS} ${INCLUDE_DIRS} src/terminal_helper.cpp -o terminal_helper ${LDFLAGS} >> ${DEBUG_LOG} 2>&1; then
+    chmod +x terminal_helper
+    echo -e "${COLOR_GREEN}[OK]${COLOR_RESET} terminal_helper 编译成功！"
+    echo -e "${COLOR_ORANGE}<INFO>${COLOR_RESET}   位置: ./terminal_helper"
+else
+    echo -e "${COLOR_RED}[ERROR]${COLOR_RESET} terminal_helper 编译失败！"
+    echo -e "${COLOR_RED}[ERROR]${COLOR_RESET} 详细错误信息已保存到 ${DEBUG_LOG}"
+    exit 1
+fi
+
+echo ""
+echo "编译日志已保存到: ${DEBUG_LOG}"
+echo ""

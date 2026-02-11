@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.7-nova - Web服务器实现
+ * Mikufy v2.11-nova - Web服务器实现
  *
  * 本文件实现了HTTP服务器功能，负责与前端进行通信。
  * 主要功能包括：
@@ -15,12 +15,19 @@
 
 #include "../headers/web_server.h"
 #include "../headers/text_buffer.h"
+#include "../headers/terminal_manager.h"
+#include "../headers/process_launcher.h"
+#include "../headers/terminal_window.h"
 #include <iostream>
 #include <cstring>
 #include <sstream>
+#include <algorithm>
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <sys/select.h>
+#include <sys/types.h>
+#include <limits.h>
 #include <stdio.h>	/* popen(), pclose() */
 #include <sys/wait.h>	/* WIFEXITED(), WEXITSTATUS() */
 #include <unordered_map>
@@ -35,9 +42,19 @@
  */
 WebServer::WebServer(FileManager *file_manager)
 	: file_manager(file_manager), server_socket(-1),
-	  port(WEB_SERVER_PORT), running(false), web_root_path("")
+	  port(WEB_SERVER_PORT), running(false), web_root_path(""),
+	  terminal_manager(std::make_unique<TerminalManager>())
 {
 	register_routes(); /* 注册所有API路由处理器 */
+
+	/* 启动终端管理器 */
+	if (terminal_manager) {
+		auto result = terminal_manager->start();
+		if (!result.has_value()) {
+			std::cerr << "启动终端管理器失败: " << result.error()
+				  << std::endl;
+		}
+	}
 }
 
 /**
@@ -48,6 +65,10 @@ WebServer::WebServer(FileManager *file_manager)
 WebServer::~WebServer(void)
 {
 	stop(); /* 停止服务器并释放资源 */
+
+	/* 停止终端管理器 */
+	if (terminal_manager)
+		terminal_manager->stop();
 
 	/* 清理所有 TextBuffer */
 	std::lock_guard<std::mutex> lock(text_buffers_mutex);
@@ -772,6 +793,13 @@ void WebServer::register_routes(void)
 		return handle_refresh(path, headers, body);
 	};
 
+	routes["/api/refresh-directory"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_refresh_directory(path, headers, body);
+	};
+
 	routes["/api/change-wallpaper"] = [this](
 			const std::string &path,
 			const std::map<std::string, std::string> &headers,
@@ -836,6 +864,44 @@ void WebServer::register_routes(void)
 			const std::map<std::string, std::string> &headers,
 			const std::string &body) {
 		return handle_close_file_virtual(path, headers, body);
+	};
+
+	/*
+	 * 终端 API 路由
+	 */
+	routes["/api/terminal-info"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_terminal_info(path, headers, body);
+	};
+
+	routes["/api/terminal-execute"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_terminal_execute(path, headers, body);
+	};
+
+	routes["/api/terminal-get-output"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_terminal_get_output(path, headers, body);
+	};
+
+	routes["/api/terminal-send-input"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_terminal_send_input(path, headers, body);
+	};
+
+	routes["/api/terminal-kill-process"] = [this](
+			const std::string &path,
+			const std::map<std::string, std::string> &headers,
+			const std::string &body) {
+		return handle_terminal_kill_process(path, headers, body);
 	};
 }
 
@@ -1329,77 +1395,9 @@ HttpResponse WebServer::handle_save_all(
 				std::cerr << "文件写入失败: " << file_path
 					  << std::endl;
 				all_success = false;
-				continue;
-			}
-
-			/*
-			 * 使用cat命令验证文件内容
-			 * 构造cat命令: cat "文件路径"
-			 */
-			std::string cmd = "cat \"" + file_path + "\" 2>/dev/null";
-
-			/*
-			 * 执行命令并读取输出
-			 */
-			FILE *pipe = popen(cmd.c_str(), "r");
-			if (!pipe) {
-				std::cerr << "无法执行cat命令: " << file_path
-					  << ", " << strerror(errno)
-					  << std::endl;
-				/*
-				 * 即使无法执行cat命令，只要写入成功就认为保存成功
-				 */
-				continue;
-			}
-
-			/*
-			 * 读取命令输出
-			 */
-			char buffer[8192];
-			std::string output;
-			while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-				output += buffer;
-			}
-
-			/*
-			 * 关闭管道并获取退出状态
-			 */
-			int exit_status = pclose(pipe);
-
-			/*
-			 * 正确解析退出状态
-			 * 使用WIFEXITED和WEXITSTATUS宏获取实际的退出码
-			 */
-			bool command_success = false;
-			if (WIFEXITED(exit_status)) {
-				int actual_exit_status = WEXITSTATUS(exit_status);
-				/*
-				 * cat命令成功时返回0
-				 */
-				if (actual_exit_status == 0) {
-					command_success = true;
-				}
-			}
-
-			/*
-			 * 验证文件内容
-			 * 只要命令执行成功，就认为文件存在且可读，即保存成功
-			 * 不需要验证输出的具体内容，因为空文件也是有效的
-			 */
-			if (!command_success) {
-				std::cerr << "文件验证失败: " << file_path
-					  << " (exit_status=" << exit_status
-					  << ", WIFEXITED=" << WIFEXITED(exit_status);
-				if (WIFEXITED(exit_status)) {
-					std::cerr << ", WEXITSTATUS="
-						  << WEXITSTATUS(exit_status);
-				}
-				std::cerr << ", output_length=" << output.length()
-					  << ")" << std::endl;
-				all_success = false;
 			} else {
-				std::cout << "文件验证成功: " << file_path
-					  << " (size=" << output.length()
+				std::cout << "文件保存成功: " << file_path
+					  << " (size=" << content.length()
 					  << " bytes)" << std::endl;
 			}
 		}
@@ -1436,6 +1434,78 @@ HttpResponse WebServer::handle_refresh(
 	result["success"] = true;
 
 	response.body = result.dump();
+
+	return response;
+}
+
+/**
+ * WebServer::handle_refresh_directory - 处理增量刷新目录API
+ * @path: 请求路径（未使用）
+ * @headers: 请求头（未使用）
+ * @body: JSON请求体，包含directory字段
+ *
+ * 只刷新指定目录的内容，用于智能刷新功能。
+ *
+ * 返回: JSON响应，包含success、directory、files字段
+ */
+HttpResponse WebServer::handle_refresh_directory(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string directory = request["directory"];
+
+		if (directory.empty()) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Directory path is required";
+			response.body = result.dump();
+			return response;
+		}
+
+		/* 只刷新指定目录 */
+		std::vector<FileInfo> files;
+		bool success = file_manager->get_directory_contents(directory, files);
+
+		json result;
+		result["success"] = success;
+		result["directory"] = directory;
+
+		/* 转换文件信息为JSON数组 */
+		json files_array = json::array();
+		for (const auto &file : files) {
+			json file_obj;
+			file_obj["name"] = file.name;
+			file_obj["path"] = file.path;
+			file_obj["is_directory"] = file.is_directory;
+			file_obj["size"] = file.size;
+			file_obj["mime_type"] = file.mime_type;
+			file_obj["is_binary"] = file.is_binary;
+			files_array.push_back(file_obj);
+		}
+		result["files"] = files_array;
+
+		response.body = result.dump();
+	} catch (const json::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = "Invalid JSON request";
+		response.body = result.dump();
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
 
 	return response;
 }
@@ -2023,6 +2093,260 @@ std::string WebServer::detect_language_simple(const std::string &filename)
 
 /*
  * ============================================================================
+ * 终端 API 实现
+ * ============================================================================
+ */
+
+/**
+ * WebServer::handle_terminal_info - 处理获取终端信息API
+ * @path: 请求路径（未使用）
+ * @headers: 请求头（未使用）
+ * @body: JSON请求体，包含path字段
+ *
+ * 获取当前用户名、主机名和当前路径信息。
+ *
+ * 返回: JSON响应，包含success、user、hostname、path、isRoot字段
+ */
+HttpResponse WebServer::handle_terminal_info(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string terminal_path = request["path"];
+
+		// 获取用户名
+		char *user = getenv("USER");
+		if (!user)
+			user = getenv("USERNAME");
+		if (!user)
+			user = (char *)"unknown";
+
+		// 获取主机名
+		char hostname[256];
+		if (gethostname(hostname, sizeof(hostname)) != 0)
+			strcpy(hostname, "localhost");
+
+		// 检查是否为root用户
+		bool is_root = (getuid() == 0);
+
+		// 验证路径是否存在
+		if (terminal_path.empty())
+			terminal_path = "/";
+
+		json result;
+		result["success"] = true;
+		result["user"] = std::string(user);
+		result["hostname"] = std::string(hostname);
+		result["path"] = terminal_path;
+		result["isRoot"] = is_root;
+
+		response.body = result.dump();
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_terminal_execute - 处理执行终端命令API
+ * @path: 请求路径（未使用）
+ * @headers: 请求头（未使用）
+ * @body: JSON请求体，包含command和path字段
+ *
+ * 在指定路径下执行shell命令。
+ * 普通命令在终端视图中执行，需要独立窗口的程序在GTK4窗口中运行。
+ *
+ * 返回: JSON响应，包含success、output、error、newPath、isRoot、pid字段
+ */
+HttpResponse WebServer::handle_terminal_execute(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		std::string command = request["command"];
+		std::string terminal_path = request["path"];
+
+		if (terminal_path.empty())
+			terminal_path = "/";
+
+		/* 判断是否需要独立窗口运行 */
+		bool needs_independent_window = false;
+
+		/* 1. 检查是否是 ./xxx 格式的可执行文件 */
+		if (command.find("./") == 0) {
+			auto parsed = mikufy::smart_process::parse_executable_command(command);
+			if (parsed.is_valid)
+				needs_independent_window = true;
+		}
+
+		/* 2. 检查是否是 python/python3/node 等解释器运行的脚本 */
+		if (!needs_independent_window) {
+			static std::vector<std::string> interpreters = {
+				"python3 ", "python ", "python3\t", "python\t",
+				"node ", "node\t", "ruby ", "ruby\t", "perl ", "perl\t"
+			};
+			for (const auto &prefix : interpreters) {
+				if (command.compare(0, prefix.length(), prefix) == 0) {
+					needs_independent_window = true;
+					break;
+				}
+			}
+		}
+
+		pid_t pid = -1;
+		std::string output;
+		std::string new_path = terminal_path;
+
+		if (needs_independent_window) {
+			/* 使用 terminal_helper 在独立窗口中运行 */
+			auto smart_result = mikufy::smart_process::launch_with_detection(
+				command, terminal_path);
+
+			if (!smart_result.has_value()) {
+				json result;
+				result["success"] = false;
+				result["error"] = smart_result.error();
+				result["path"] = terminal_path;
+				result["isRoot"] = (getuid() == 0);
+				response.body = result.dump();
+				return response;
+			}
+
+			pid = smart_result.value();
+			output = "Process started in independent terminal window.";
+		} else {
+			/* 使用终端管理器执行普通命令 */
+			if (!terminal_manager) {
+				json result;
+				result["success"] = false;
+				result["error"] = "Terminal manager not initialized";
+				result["path"] = terminal_path;
+				result["isRoot"] = (getuid() == 0);
+				response.body = result.dump();
+				return response;
+			}
+
+			auto pid_result = terminal_manager->execute_command(
+				command, terminal_path);
+
+			if (!pid_result.has_value()) {
+				json result;
+				result["success"] = false;
+				result["error"] = pid_result.error();
+				result["path"] = terminal_path;
+				result["isRoot"] = (getuid() == 0);
+				response.body = result.dump();
+				return response;
+			}
+
+			pid = pid_result.value();
+
+			/* 处理cd命令的特殊情况 - 在执行后立即处理路径变化 */
+			if (command.substr(0, 2) == "cd") {
+				/* 提取目标路径 */
+				std::string target_path = command.substr(2);
+				size_t start = target_path.find_first_not_of(" \t");
+				if (start != std::string::npos) {
+					size_t end = target_path.find_last_not_of(" \t");
+					target_path = target_path.substr(start, end - start + 1);
+
+					/* 使用expand_path函数展开路径 */
+					std::string expanded = expand_path(target_path, terminal_path);
+					if (!expanded.empty()) {
+						/* 验证路径是否存在且可访问 */
+						if (access(expanded.c_str(), F_OK) == 0) {
+							new_path = expanded;
+						}
+					}
+				}
+			}
+
+			/* 读取进程输出（优化版：智能等待而非固定轮询） */
+			const int max_attempts = 3;  /* 减少到3次尝试 */
+			const int delay_ms = 50;     /* 减少等待时间到50ms */
+
+			for (int attempt = 0; attempt < max_attempts; ++attempt) {
+				auto output_result = terminal_manager->get_output(pid);
+				if (output_result.has_value()) {
+					output += output_result->stdout_data;
+				}
+
+				/* 检查进程是否已结束 */
+				auto info_result = terminal_manager->get_process_info(pid);
+				if (info_result.has_value() && !info_result->is_running) {
+					/* 进程已结束，再读取一次确保获取剩余输出 */
+					output_result = terminal_manager->get_output(pid);
+					if (output_result.has_value())
+						output += output_result->stdout_data;
+					break;
+				}
+
+				/* 如果还没有输出或进程还在运行，短暂等待后继续 */
+				if (attempt < max_attempts - 1)
+					usleep(delay_ms * 1000);
+			}
+		}
+
+		json result;
+		result["success"] = true;
+		result["output"] = output;
+		result["path"] = terminal_path;
+		result["newPath"] = new_path;
+		result["isRoot"] = (getuid() == 0);
+		result["pid"] = pid;
+		result["interactive"] = needs_independent_window;
+		result["smart_launch"] = needs_independent_window;
+		result["should_refresh"] = should_refresh_after_command(command);
+
+		response.body = result.dump();
+		return response;
+
+	} catch (const json::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = "Invalid JSON request";
+		result["output"] = "";
+		response.body = result.dump();
+		return response;
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		result["output"] = "";
+		response.body = result.dump();
+		return response;
+	}
+}
+/*
+ * ============================================================================
+ * 高性能编辑器 API 实现（基于 TextBuffer 虚拟化渲染）
+ * ============================================================================
+ */
+
+/*
+ * ============================================================================
  * 高性能编辑器 API 实现（基于 TextBuffer 虚拟化渲染）
  * ============================================================================
  */
@@ -2569,4 +2893,276 @@ HttpResponse WebServer::handle_close_file_virtual(
 	}
 
 	return response;
+}
+
+/**
+ * WebServer::handle_terminal_get_output - 获取交互式进程的输出
+ */
+HttpResponse WebServer::handle_terminal_get_output(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		pid_t pid = request["pid"];
+
+		if (!terminal_manager) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Terminal manager not initialized";
+			result["is_running"] = false;
+			response.body = result.dump();
+			return response;
+		}
+
+		auto output_result = terminal_manager->get_output(pid);
+
+		if (!output_result.has_value()) {
+			json result;
+			result["success"] = false;
+			result["error"] = output_result.error();
+			result["is_running"] = false;
+			result["pid"] = pid;
+			response.body = result.dump();
+			return response;
+		}
+
+		TerminalOutput output = output_result.value();
+
+		auto info_result = terminal_manager->get_process_info(pid);
+		bool is_running = false;
+
+		if (info_result.has_value())
+			is_running = info_result.value().is_running;
+
+		json result;
+		result["success"] = true;
+		result["output"] = output.stdout_data;
+		result["error"] = output.stderr_data;
+		result["is_running"] = is_running;
+		result["pid"] = pid;
+
+		response.body = result.dump();
+
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_terminal_send_input - 向交互式进程发送输入
+ */
+HttpResponse WebServer::handle_terminal_send_input(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		pid_t pid = request["pid"];
+		std::string input = request["input"];
+
+		if (!terminal_manager) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Terminal manager not initialized";
+			response.body = result.dump();
+			return response;
+		}
+
+		auto result_obj = terminal_manager->send_input(pid, input);
+
+		json result;
+		result["success"] = result_obj.has_value();
+		result["pid"] = pid;
+
+		if (!result_obj.has_value())
+			result["error"] = result_obj.error();
+
+		response.body = result.dump();
+
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::handle_terminal_kill_process - 终止交互式进程
+ */
+HttpResponse WebServer::handle_terminal_kill_process(
+	const std::string &path, const std::map<std::string, std::string> &headers,
+	const std::string &body)
+{
+	(void)path;
+	(void)headers;
+
+	HttpResponse response;
+	response.status_code = 200;
+	response.status_text = "OK";
+	response.headers["Content-Type"] = "application/json";
+
+	try {
+		json request = json::parse(body);
+		pid_t pid = request["pid"];
+
+		if (!terminal_manager) {
+			json result;
+			result["success"] = false;
+			result["error"] = "Terminal manager not initialized";
+			response.body = result.dump();
+			return response;
+		}
+
+		auto result_obj = terminal_manager->terminate_process(pid);
+
+		json result;
+		result["success"] = result_obj.has_value();
+		result["pid"] = pid;
+		result["message"] = "Process terminated";
+
+		if (!result_obj.has_value())
+			result["error"] = result_obj.error();
+
+		response.body = result.dump();
+	} catch (const std::exception &e) {
+		json result;
+		result["success"] = false;
+		result["error"] = e.what();
+		response.body = result.dump();
+	}
+
+	return response;
+}
+
+/**
+ * WebServer::should_refresh_after_command - 判断命令执行后是否需要刷新文件树
+ * @command: 要检测的命令字符串
+ *
+ * 检测命令是否是文件操作或编译命令，如果是则返回true。
+ * 这用于自动刷新文件树功能。
+ *
+ * 返回值: 需要刷新返回true，否则返回false
+ */
+bool WebServer::should_refresh_after_command(const std::string &command)
+{
+	/* 需要刷新的命令前缀列表 */
+	static const std::vector<std::string> refresh_commands = {
+		"mkdir ", "rm ", "mv ", "cp ", "touch ", "ln ",
+		"gcc ", "g++ ", "clang ", "clang++ ", "rustc ", "cc ",
+		"make ", "cmake ", "ninja ", "ninja-build ",
+		"cargo ", "cargo build", "cargo run", "cargo install",
+		"npm ", "npm run", "npm install", "npm build",
+		"pip ", "pip install", "pip3 ", "pip3 install",
+		"yarn ", "yarn install", "yarn build",
+		"pnpm ", "pnpm install", "pnpm build",
+		"go build", "go run", "go install",
+		"javac ", "java -jar",
+		"gradle ", "gradle build", "gradlew ",
+		"mvn ", "mvn compile", "mvn package", "mvn install",
+		"meson ", "meson build",
+		"bazel ", "bazel build",
+		"npx ",
+		"bun ", "bun install", "bun run",
+		"poetry ", "poetry install", "poetry build",
+		"composer ", "composer install"
+	};
+
+	/* 精确匹配 */
+	for (const auto &cmd : refresh_commands) {
+		if (command == cmd)
+			return true;
+		/* 前缀匹配 */
+		if (command.compare(0, cmd.length(), cmd) == 0)
+			return true;
+	}
+
+	/* 特殊关键字检测 */
+	if (command.find(" build") != std::string::npos ||
+	    command.find(" install") != std::string::npos ||
+	    command.find(" compile") != std::string::npos) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * WebServer::expand_path - 展开路径中的特殊符号
+ * @path: 要展开的路径
+ * @base_dir: 基准目录（用于解析相对路径）
+ *
+ * 处理路径中的~（家目录）、.（当前目录）、..（上级目录）等特殊符号。
+ *
+ * 返回值: 展开后的绝对路径，失败返回空字符串
+ */
+std::string WebServer::expand_path(const std::string &path, const std::string &base_dir)
+{
+	std::string result = path;
+
+	/* 处理~符号（家目录） */
+	if (result == "~") {
+		char *home = getenv("HOME");
+		if (home)
+			result = std::string(home);
+	} else if (!result.empty() && result[0] == '~') {
+		char *home = getenv("HOME");
+		if (home)
+			result = std::string(home) + result.substr(1);
+	}
+
+	/* 处理空路径 */
+	if (result.empty())
+		return "";
+
+	/* 处理绝对路径 */
+	if (result[0] == '/') {
+		char *real_path = realpath(result.c_str(), nullptr);
+		if (real_path) {
+			std::string expanded = std::string(real_path);
+			free(real_path);
+			return expanded;
+		}
+		return "";
+	}
+
+	/* 处理相对路径 */
+	std::string full_path = base_dir;
+	if (!full_path.empty() && full_path.back() != '/')
+		full_path += "/";
+	full_path += result;
+
+	/* 规范化路径 */
+	char *real_path = realpath(full_path.c_str(), nullptr);
+	if (real_path) {
+		std::string expanded = std::string(real_path);
+		free(real_path);
+		return expanded;
+	}
+
+	return "";
 }

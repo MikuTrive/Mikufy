@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.7-nova - 窗口管理器实现
+ * Mikufy v2.11-nova - 窗口管理器实现
  *
  * 本文件实现了GTK4窗口和WebKit WebView的创建与管理。
  * 主要功能包括：
@@ -15,6 +15,7 @@
 
 #include "../headers/window_manager.h"
 #include <iostream>
+#include <format>
 
 /**
  * WindowManager::WindowManager - 窗口管理器构造函数
@@ -199,9 +200,8 @@ bool WindowManager::create_web_view(void)
  */
 void WindowManager::load_frontend_page(void)
 {
-	std::string url = "http://localhost:" +
-			  std::to_string(WEB_SERVER_PORT) + "/";
-	std::cout << "正在加载前端页面: " << url << std::endl;
+	std::string url = std::format("http://localhost:{}/", WEB_SERVER_PORT);
+	std::cout << std::format("正在加载前端页面: {}", url) << std::endl;
 	webkit_web_view_load_uri(web_view, url.c_str());
 }
 
@@ -375,7 +375,7 @@ void WindowManager::on_web_view_load_changed(WebKitWebView *web_view,
 		std::cout << "WebView 页面提交" << std::endl;
 		const gchar *uri = webkit_web_view_get_uri(web_view);
 		if (uri)
-			std::cout << "WebView URI: " << uri << std::endl;
+			std::cout << std::format("WebView URI: {}", uri) << std::endl;
 	}
 }
 
@@ -395,7 +395,8 @@ gboolean WindowManager::on_web_view_leave_fullscreen(WebKitWebView *web_view,
 	WindowManager *manager = static_cast<WindowManager *>(user_data);
 	(void)web_view;
 
-	std::cout << "WebView全屏退出事件，F11按键=" << (manager->f11_pressed ? "是" : "否") << std::endl;
+	std::cout << std::format("WebView全屏退出事件，F11按键={}",
+				 manager->f11_pressed ? "是" : "否") << std::endl;
 
 	/* 如果是 F11 导致的，允许退出；否则阻止退出 */
 	if (manager->f11_pressed) {

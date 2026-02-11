@@ -1,0 +1,15 @@
+========================================
+Mikufy 2.11-nova 编译日志
+时间: Wed Feb 11 12:07:00 PM CST 2026
+CPU: 12 核心 24 线程
+========================================
+
+编译: src/main.cpp
+编译: src/file_manager.cpp
+编译: src/web_server.cpp
+编译: src/window_manager.cpp
+编译: src/text_buffer.cpp
+编译: src/terminal_manager.cpp
+编译: src/process_launcher.cpp
+编译: src/terminal_window.cpp
+链接: mikufy

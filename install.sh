@@ -1,7 +1,5 @@
-#!/bin/bash
-
 #
-# Mikufy v2.7-nova - 安装脚本
+# Mikufy v2.11-nova - 安装脚本
 # 适用于所有Linux发行版用户的系统
 # 支持系统级安装（需要sudo）和用户级安装（无需sudo）
 #
@@ -15,7 +13,7 @@ NC='\033[0m' # No Color
 
 # 项目信息
 PROJECT_NAME="Mikufy"
-VERSION="v2.7-nova"
+VERSION="2.11-nova"
 APP_NAME="mikufy"
 EXECUTABLE="${APP_NAME}"
 WEB_DIR="web"
@@ -80,6 +78,12 @@ check_files() {
         exit 1
     fi
 
+    if [ ! -f "terminal_helper" ]; then
+        print_error "未找到可执行文件: terminal_helper"
+        print_info "请先运行 ./build.sh 编译项目"
+        exit 1
+    fi
+
     if [ ! -d "${WEB_DIR}" ]; then
         print_error "未找到web目录: ${WEB_DIR}"
         exit 1
@@ -118,6 +122,8 @@ install_user() {
     print_info "安装可执行文件和web目录到 ${APP_DIR}..."
     cp "${EXECUTABLE}" "${APP_DIR}/"
     chmod +x "${APP_DIR}/${EXECUTABLE}"
+    cp "terminal_helper" "${APP_DIR}/"
+    chmod +x "${APP_DIR}/terminal_helper"
     mkdir -p "${APP_DIR}/web"
     cp -r "${WEB_DIR}"/* "${APP_DIR}/web/"
     chmod -R 755 "${APP_DIR}/web"
@@ -133,6 +139,11 @@ exec "${APP_DIR}/${EXECUTABLE}" "\$@"
 EOF
     chmod +x "${BIN_DIR}/${APP_NAME}"
     print_success "启动脚本已创建"
+
+    # 创建 terminal_helper 符号链接
+    print_info "创建 terminal_helper 符号链接到 ${BIN_DIR}..."
+    ln -sf ../share/MIKUFY/terminal_helper "${BIN_DIR}/terminal_helper"
+    print_success "terminal_helper 符号链接已创建"
 
     # 复制图标文件
     print_info "安装应用图标..."
@@ -208,6 +219,8 @@ install_system() {
     print_info "安装可执行文件和web目录到 ${APP_DIR}..."
     cp "${EXECUTABLE}" "${APP_DIR}/"
     chmod +x "${APP_DIR}/${EXECUTABLE}"
+    cp "terminal_helper" "${APP_DIR}/"
+    chmod +x "${APP_DIR}/terminal_helper"
     mkdir -p "${APP_DIR}/web"
     cp -r "${WEB_DIR}"/* "${APP_DIR}/web/"
     chmod -R 755 "${APP_DIR}/web"
@@ -223,6 +236,11 @@ exec "${APP_DIR}/${EXECUTABLE}" "\$@"
 EOF
     chmod +x "${BIN_DIR}/${APP_NAME}"
     print_success "启动脚本已创建"
+
+    # 创建 terminal_helper 符号链接
+    print_info "创建 terminal_helper 符号链接到 ${BIN_DIR}..."
+    ln -sf ../share/mikufy/terminal_helper "${BIN_DIR}/terminal_helper"
+    print_success "terminal_helper 符号链接已创建"
 
     # 复制图标文件
     print_info "安装应用图标..."
@@ -284,6 +302,7 @@ uninstall_user() {
     # 删除文件
     print_info "删除已安装的文件..."
     rm -f "${BIN_DIR}/${APP_NAME}"
+    rm -f "${BIN_DIR}/terminal_helper"
     rm -rf "${APP_DIR}"
     rm -f "${ICONS_DIR}/${APP_NAME}.png"
     rm -f "${HOME}/Desktop/${DESKTOP_FILE}"
@@ -316,6 +335,7 @@ uninstall_system() {
     # 删除文件
     print_info "删除已安装的文件..."
     rm -f "${BIN_DIR}/${APP_NAME}"
+    rm -f "${BIN_DIR}/terminal_helper"
     rm -rf "${APP_DIR}"
     rm -f "${ICONS_DIR}/${APP_NAME}.png"
     rm -f "${INSTALL_DIR}/share/applications/${DESKTOP_FILE}"

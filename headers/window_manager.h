@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.7-nova - 窗口管理器头文件
+ * Mikufy v2.11-nova - 窗口管理器头文件
  *
  * 本文件定义了WindowManager类的接口，该类负责管理GTK窗口和
  * WebKitWebView组件。WindowManager创建并维护应用程序的主窗口，
@@ -37,6 +37,8 @@
 
 #include "main.h"		/* 全局定义和数据结构 */
 #include "web_server.h"		/* WebServer类 */
+#include <expected>		/* C++23 std::expected 错误处理 */
+#include <format>		/* C++23 std::format 字符串格式化 */
 
 /*
  * ============================================================================

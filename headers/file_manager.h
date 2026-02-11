@@ -1,5 +1,5 @@
 /*
- * Mikufy v2.7-nova - 文件管理器头文件
+ * Mikufy v2.11-nova - 文件管理器头文件
  *
  * 本文件定义了FileManager类的接口，该类负责处理所有与文件系统
  * 相关的操作。FileManager提供了一组统一的API来执行文件的读取、
@@ -36,6 +36,8 @@
 #include <unordered_map>	/* std::unordered_map 哈希映射 */
 #include <list>			/* std::list 双向链表 */
 #include <chrono>		/* std::chrono 时间库 */
+#include <expected>		/* C++23 std::expected 错误处理 */
+#include <format>		/* C++23 std::format 字符串格式化 */
 
 /*
  * ============================================================================

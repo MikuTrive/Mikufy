@@ -1,10 +1,10 @@
-# # Mikufy v2.7-nova
+# # Mikufy v2.11-nova
 # 作者 luozenan
 
 [Desktop Entry]
 Type=Application
 Name=mikufy
-Comment=Mikufy v2.7-nova
+Comment=Mikufy v2.11-nova
 Exec=mikufy
 Icon=mikufy
 Terminal=false
